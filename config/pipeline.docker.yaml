@@ -86,6 +86,11 @@ opentelemetry:
 shutdown:
   drain_timeout_seconds: 15.0
 
+tenancy:
+  enabled: false
+  default_tenant: default
+  tenant_api_keys: {}
+
 alerting:
   enabled: false
   slack_webhook_url: ""

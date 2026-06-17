@@ -77,6 +77,7 @@ class AnomalyDetector:
             if drift_detected:
                 message_parts.append("concept drift detected")
             return AnomalyScore(
+                tenant_id=event.tenant_id,
                 device_id=event.device_id,
                 sensor_type=event.sensor_type,
                 timestamp=event.timestamp,

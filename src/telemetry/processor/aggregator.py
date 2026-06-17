@@ -18,6 +18,7 @@ class WindowAggregator:
             return []
 
         device_id, sensor_type = key.split(":", 1)
+        tenant_id = events[0].tenant_id
         window_start = min(e.timestamp for e in events)
         window_end = max(e.timestamp for e in events)
 
@@ -30,6 +31,7 @@ class WindowAggregator:
         for field_name, values in field_values.items():
             stats.append(
                 WindowStats(
+                    tenant_id=tenant_id,
                     device_id=device_id,
                     sensor_type=sensor_type,
                     window_start=window_start,

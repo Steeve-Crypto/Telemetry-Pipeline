@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class Severity(str, Enum):
@@ -24,6 +24,7 @@ class SensorEvent(BaseModel):
     metrics: dict[str, float]
     sequence: int | None = None
     tags: dict[str, str] = Field(default_factory=dict)
+    tenant_id: str | None = None
     is_anomaly: bool | None = None
     anomaly_label: str | None = None
 
@@ -54,8 +55,16 @@ class EnrichedEvent(SensorEvent):
     validation_errors: list[str] = Field(default_factory=list)
     enriched_tags: dict[str, str] = Field(default_factory=dict)
 
+    @model_validator(mode="after")
+    def ensure_tenant_id(self) -> EnrichedEvent:
+        if not self.tenant_id:
+            tag_tenant = self.tags.get("tenant_id") or self.tags.get("tenant")
+            self.tenant_id = tag_tenant or "default"
+        return self
+
 
 class WindowStats(BaseModel):
+    tenant_id: str = "default"
     device_id: str
     sensor_type: str
     window_start: datetime
@@ -69,6 +78,7 @@ class WindowStats(BaseModel):
 
 
 class AnomalyScore(BaseModel):
+    tenant_id: str = "default"
     device_id: str
     sensor_type: str
     timestamp: datetime

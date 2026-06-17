@@ -4,20 +4,29 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from telemetry.config import SensorsYamlConfig
+from telemetry.config import SensorsYamlConfig, TenancyConfig
 from telemetry.models import EnrichedEvent
+from telemetry.tenancy import resolve_event_tenant
 
 
 class EventEnricher:
-    def __init__(self, sensors_config: SensorsYamlConfig, environment: str = "local") -> None:
+    def __init__(
+        self,
+        sensors_config: SensorsYamlConfig,
+        environment: str = "local",
+        tenancy: TenancyConfig | None = None,
+    ) -> None:
         self._sensors = sensors_config
         self._environment = environment
+        self._tenancy = tenancy or TenancyConfig()
 
     def enrich(self, event: EnrichedEvent) -> EnrichedEvent:
+        event.tenant_id = resolve_event_tenant(event, self._tenancy)
         sensor_def = self._sensors.sensor_types.get(event.sensor_type)
         tags = {
             "environment": self._environment,
             "sensor_type": event.sensor_type,
+            "tenant_id": event.tenant_id,
             "ingest_hour": str(event.ingested_at.hour),
         }
         if sensor_def:

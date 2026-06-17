@@ -122,6 +122,12 @@ opentelemetry:
 shutdown:
   drain_timeout_seconds: 10.0
 
+tenancy:
+  enabled: false
+  default_tenant: default
+  require_tenant_header: false
+  tenant_api_keys: {}
+
 prometheus:
   enabled: true
   namespace: telemetry

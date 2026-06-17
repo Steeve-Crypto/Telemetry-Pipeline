@@ -41,6 +41,7 @@ class TelemetryPipeline:
         self._enricher = EventEnricher(
             sensors_config,
             environment=pipeline_config.pipeline.get("environment", "local"),
+            tenancy=pipeline_config.tenancy,
         )
         self._window = TumblingWindow(
             pipeline_config.processing.window_size_seconds,
@@ -91,7 +92,12 @@ class TelemetryPipeline:
         self._running = True
 
         if self._config.viz.enabled:
-            self._viz = VizAPI(self._storage, self._prometheus, self._config.viz)
+            self._viz = VizAPI(
+                self._storage,
+                self._prometheus,
+                self._config.viz,
+                self._config.tenancy,
+            )
             self._viz_runner = await self._viz.start(
                 host=self._config.viz.host,
                 port=self._config.viz.port,

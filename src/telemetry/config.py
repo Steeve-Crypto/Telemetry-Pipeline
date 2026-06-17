@@ -171,6 +171,13 @@ class ShutdownConfig(BaseModel):
     drain_timeout_seconds: float = 10.0
 
 
+class TenancyConfig(BaseModel):
+    enabled: bool = False
+    default_tenant: str = "default"
+    require_tenant_header: bool = False
+    tenant_api_keys: dict[str, str] = Field(default_factory=dict)
+
+
 class PrometheusConfig(BaseModel):
     enabled: bool = True
     namespace: str = "telemetry"
@@ -208,6 +215,7 @@ class PipelineYamlConfig(BaseModel):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     opentelemetry: OpenTelemetryConfig = Field(default_factory=OpenTelemetryConfig)
     shutdown: ShutdownConfig = Field(default_factory=ShutdownConfig)
+    tenancy: TenancyConfig = Field(default_factory=TenancyConfig)
 
     @property
     def kafka_offset_reset(self) -> str:

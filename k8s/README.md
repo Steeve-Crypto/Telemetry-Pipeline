@@ -70,6 +70,11 @@ telemetry-kafka-init --config config/pipeline.k8s.yaml
 
 The HPA scales pipeline pods from 2–8 based on CPU. Increase `maxReplicas` for higher throughput.
 
+## Security (Helm)
+
+Pod Security Standards and NetworkPolicies are configured via the Helm chart (`podSecurity.*`, `networkPolicy.*`).
+The raw `k8s/namespace.yaml` includes baseline PSS labels; use Helm for full policy coverage.
+
 ## Metrics — VictoriaMetrics (free Prometheus alternative)
 
 Docker and K8s use [VictoriaMetrics](https://victoriametrics.com/) instead of Prometheus for

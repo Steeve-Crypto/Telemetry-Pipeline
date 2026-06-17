@@ -1,5 +1,14 @@
 # Production overrides — use with ArgoCD valueFiles or helm -f
 
+podSecurity:
+  enforce: baseline
+  warn: restricted
+  audit: restricted
+
+networkPolicy:
+  enabled: true
+  defaultDeny: true
+
 secrets:
   create: false  # manage via External Secrets Operator / SealedSecrets
   existingSecretName: telemetry-pipeline-secrets

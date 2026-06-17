@@ -5,4 +5,5 @@ metadata:
   name: {{ include "telemetry-pipeline.namespace" . }}
   labels:
     {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+    {{- include "telemetry-pipeline.podSecurityLabels" . | nindent 4 }}
 {{- end }}

@@ -10,6 +10,38 @@ namespace:
 global:
   imagePullPolicy: IfNotPresent
 
+podSecurity:
+  enabled: true
+  enforce: baseline
+  warn: restricted
+  audit: restricted
+  pipeline:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    readOnlyRootFilesystem: true
+  timescaledb:
+    runAsUser: 999
+    fsGroup: 999
+  victoriametrics:
+    runAsUser: 65534
+    runAsGroup: 65534
+    fsGroup: 65534
+
+networkPolicy:
+  enabled: true
+  defaultDeny: true
+  dns:
+    namespace: kube-system
+    labels:
+      k8s-app: kube-dns
+  ingressController:
+    enabled: true
+    namespace: ingress-nginx
+    labels:
+      app.kubernetes.io/name: ingress-nginx
+  allowSameNamespace: true
+
 images:
   pipeline:
     repository: telemetry-pipeline

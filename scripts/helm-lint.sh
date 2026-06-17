@@ -17,10 +17,21 @@ helm lint "$CHART" -f "$CHART/values.yaml" -f "$CHART/values-production.yaml"
 echo "==> helm template (dev)"
 helm template telemetry-pipeline "$CHART" --namespace telemetry > /tmp/telemetry-helm-dev.yaml
 grep -q "kind: Deployment" /tmp/telemetry-helm-dev.yaml
+grep -q "kind: NetworkPolicy" /tmp/telemetry-helm-dev.yaml
+grep -q "pod-security.kubernetes.io/enforce" /tmp/telemetry-helm-dev.yaml
+grep -q "runAsNonRoot: true" /tmp/telemetry-helm-dev.yaml
 
 echo "==> helm template (production)"
 helm template telemetry-pipeline "$CHART" \
   -f "$CHART/values-production.yaml" \
   --namespace telemetry > /tmp/telemetry-helm-prod.yaml
+grep -q "kind: NetworkPolicy" /tmp/telemetry-helm-prod.yaml
+
+echo "==> helm template (security disabled)"
+helm template telemetry-pipeline "$CHART" \
+  --set podSecurity.enabled=false \
+  --set networkPolicy.enabled=false \
+  --namespace telemetry > /tmp/telemetry-helm-nosec.yaml
+! grep -q "kind: NetworkPolicy" /tmp/telemetry-helm-nosec.yaml
 
 echo "==> Helm chart OK"

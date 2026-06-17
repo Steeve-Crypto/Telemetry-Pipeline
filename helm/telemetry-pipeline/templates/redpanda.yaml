@@ -32,11 +32,16 @@ spec:
     metadata:
       labels:
         app: redpanda
+        app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
       containers:
         - name: redpanda
           image: {{ .Values.images.redpanda | quote }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          {{- if .Values.podSecurity.enabled }}
+          securityContext:
+            {{- include "telemetry-pipeline.redpandaContainerSecurityContext" . | nindent 12 }}
+          {{- end }}
           args:
             - redpanda
             - start

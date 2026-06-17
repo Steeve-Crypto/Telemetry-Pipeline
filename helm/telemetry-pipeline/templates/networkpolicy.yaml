@@ -1,0 +1,253 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $ns := include "telemetry-pipeline.namespace" . }}
+{{- $rel := .Release.Name }}
+{{- if .Values.networkPolicy.defaultDeny }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "telemetry-pipeline.fullname" . }}-default-deny
+  namespace: {{ $ns }}
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress: []
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "telemetry-pipeline.fullname" . }}-dns-egress
+  namespace: {{ $ns }}
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.dns.namespace | quote }}
+          {{- with .Values.networkPolicy.dns.labels }}
+          podSelector:
+            matchLabels:
+              {{- toYaml . | nindent 14 }}
+          {{- end }}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+{{- if .Values.pipeline.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "telemetry-pipeline.fullname" . }}-pipeline
+  namespace: {{ $ns }}
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: telemetry-pipeline
+      app.kubernetes.io/instance: {{ $rel | quote }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    {{- if .Values.networkPolicy.ingressController.enabled }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressController.namespace | quote }}
+          {{- with .Values.networkPolicy.ingressController.labels }}
+          podSelector:
+            matchLabels:
+              {{- toYaml . | nindent 14 }}
+          {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.service.port }}
+    {{- end }}
+    {{- if .Values.victoriametrics.enabled }}
+    - from:
+        - podSelector:
+            matchLabels:
+              app: victoriametrics
+              app.kubernetes.io/instance: {{ $rel | quote }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.service.port }}
+    {{- end }}
+    {{- if .Values.networkPolicy.allowSameNamespace }}
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.service.port }}
+    {{- end }}
+  egress:
+    {{- if .Values.timescaledb.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              app: timescaledb
+              app.kubernetes.io/instance: {{ $rel | quote }}
+      ports:
+        - protocol: TCP
+          port: 5432
+    {{- end }}
+    {{- if .Values.redpanda.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redpanda
+              app.kubernetes.io/instance: {{ $rel | quote }}
+      ports:
+        - protocol: TCP
+          port: 9092
+    {{- end }}
+{{- end }}
+{{- if .Values.timescaledb.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "telemetry-pipeline.fullname" . }}-timescaledb
+  namespace: {{ $ns }}
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: timescaledb
+      app.kubernetes.io/instance: {{ $rel | quote }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: telemetry-pipeline
+              app.kubernetes.io/instance: {{ $rel | quote }}
+      ports:
+        - protocol: TCP
+          port: 5432
+{{- end }}
+{{- if .Values.redpanda.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "telemetry-pipeline.fullname" . }}-redpanda
+  namespace: {{ $ns }}
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: redpanda
+      app.kubernetes.io/instance: {{ $rel | quote }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: telemetry-pipeline
+              app.kubernetes.io/instance: {{ $rel | quote }}
+        - podSelector:
+            matchLabels:
+              app: telemetry-simulator
+              app.kubernetes.io/instance: {{ $rel | quote }}
+        - podSelector:
+            matchLabels:
+              app: kafka-init
+      ports:
+        - protocol: TCP
+          port: 9092
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redpanda
+              app.kubernetes.io/instance: {{ $rel | quote }}
+      ports:
+        - protocol: TCP
+          port: 33145
+        - protocol: TCP
+          port: 9092
+{{- end }}
+{{- if .Values.victoriametrics.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "telemetry-pipeline.fullname" . }}-victoriametrics
+  namespace: {{ $ns }}
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: victoriametrics
+      app.kubernetes.io/instance: {{ $rel | quote }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    {{- if .Values.networkPolicy.allowSameNamespace }}
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8428
+    {{- end }}
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: telemetry-pipeline
+              app.kubernetes.io/instance: {{ $rel | quote }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.service.port }}
+{{- end }}
+{{- if .Values.simulator.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "telemetry-pipeline.fullname" . }}-simulator
+  namespace: {{ $ns }}
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: telemetry-simulator
+      app.kubernetes.io/instance: {{ $rel | quote }}
+  policyTypes:
+    - Egress
+  egress:
+    {{- if .Values.redpanda.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redpanda
+              app.kubernetes.io/instance: {{ $rel | quote }}
+      ports:
+        - protocol: TCP
+          port: 9092
+    {{- end }}
+{{- end }}
+{{- end }}

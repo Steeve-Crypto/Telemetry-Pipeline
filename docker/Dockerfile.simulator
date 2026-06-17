@@ -7,9 +7,12 @@ COPY src ./src
 COPY config ./config
 COPY docker/healthcheck-simulator.sh /healthcheck.sh
 
-RUN pip install --no-cache-dir -e . && chmod +x /healthcheck.sh
+RUN pip install --no-cache-dir -e . && chmod +x /healthcheck.sh \
+    && useradd --create-home --uid 1000 --gid 1000 telemetry \
+    && chown -R telemetry:telemetry /app /healthcheck.sh
 
 ENV PYTHONUNBUFFERED=1
+USER 1000:1000
 
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 --start-period=20s \
   CMD ["/healthcheck.sh"]

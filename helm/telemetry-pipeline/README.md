@@ -40,6 +40,33 @@ helm upgrade --install telemetry-pipeline ./helm/telemetry-pipeline \
 | `secrets.create` | Create dev Secret (disable in prod) |
 | `victoriametrics.enabled` | Free PromQL metrics backend |
 | `simulator.enabled` | Synthetic load generator |
+| `podSecurity.enabled` | Namespace PSS labels + workload `securityContext` |
+| `networkPolicy.enabled` | Default-deny + per-component allow rules |
+
+## Pod Security Standards
+
+The chart labels the namespace with [Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/):
+
+- **enforce:** `baseline` (Redpanda/Timescale need writable roots; pipeline/simulator run as UID 1000)
+- **warn / audit:** `restricted`
+
+Pipeline and simulator images run as non-root (`USER 1000` in Dockerfiles) with `readOnlyRootFilesystem` and an `emptyDir` mount at `/tmp`.
+
+Disable with `podSecurity.enabled: false` if your cluster manages PSS elsewhere.
+
+## Network policies
+
+When `networkPolicy.enabled` and `networkPolicy.defaultDeny` are true:
+
+| Workload | Ingress | Egress |
+|----------|---------|--------|
+| Pipeline | Ingress controller, VictoriaMetrics scrape | TimescaleDB :5432, Redpanda :9092 |
+| TimescaleDB | Pipeline only | DNS |
+| Redpanda | Pipeline, simulator, kafka-init | Intra-cluster Redpanda, DNS |
+| VictoriaMetrics | Same namespace (debug) | Pipeline metrics :8080 |
+| Simulator | — | Redpanda :9092 |
+
+Tune `networkPolicy.ingressController.namespace` to match your ingress controller namespace.
 
 ## Lint / dry-run
 

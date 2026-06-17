@@ -20,6 +20,10 @@ spec:
       containers:
         - name: kafka-init
           image: {{ .Values.images.redpanda | quote }}
+          {{- if .Values.podSecurity.enabled }}
+          securityContext:
+            {{- include "telemetry-pipeline.kafkaInitContainerSecurityContext" . | nindent 12 }}
+          {{- end }}
           command:
             - /bin/sh
             - -c

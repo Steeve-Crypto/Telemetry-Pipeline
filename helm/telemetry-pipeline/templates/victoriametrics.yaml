@@ -31,11 +31,20 @@ spec:
     metadata:
       labels:
         app: victoriametrics
+        app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
+      {{- if .Values.podSecurity.enabled }}
+      securityContext:
+        {{- include "telemetry-pipeline.victoriametricsPodSecurityContext" . | nindent 8 }}
+      {{- end }}
       containers:
         - name: victoriametrics
           image: {{ .Values.images.victoriametrics | quote }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          {{- if .Values.podSecurity.enabled }}
+          securityContext:
+            {{- include "telemetry-pipeline.victoriametricsContainerSecurityContext" . | nindent 12 }}
+          {{- end }}
           args:
             - "-storageDataPath=/storage"
             - "-retentionPeriod={{ .Values.victoriametrics.retentionMonths }}"

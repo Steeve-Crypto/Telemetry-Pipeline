@@ -19,14 +19,24 @@ spec:
         app: telemetry-simulator
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
+      {{- if .Values.podSecurity.enabled }}
+      securityContext:
+        {{- include "telemetry-pipeline.pythonPodSecurityContext" . | nindent 8 }}
+      {{- end }}
       containers:
         - name: simulator
           image: "{{ .Values.images.simulator.repository }}:{{ .Values.images.simulator.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          {{- if .Values.podSecurity.enabled }}
+          securityContext:
+            {{- include "telemetry-pipeline.pythonContainerSecurityContext" . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: config
               mountPath: /app/config
               readOnly: true
+            - name: tmp
+              mountPath: /tmp
           command:
             - sh
             - -c
@@ -36,6 +46,8 @@ spec:
           resources:
             {{- toYaml .Values.simulator.resources | nindent 12 }}
       volumes:
+        - name: tmp
+          emptyDir: {}
         - name: config
           configMap:
             name: {{ include "telemetry-pipeline.configMapName" . }}

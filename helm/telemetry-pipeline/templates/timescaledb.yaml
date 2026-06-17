@@ -32,11 +32,20 @@ spec:
     metadata:
       labels:
         app: timescaledb
+        app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
+      {{- if .Values.podSecurity.enabled }}
+      securityContext:
+        {{- include "telemetry-pipeline.timescalePodSecurityContext" . | nindent 8 }}
+      {{- end }}
       containers:
         - name: timescaledb
           image: {{ .Values.images.timescaledb | quote }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          {{- if .Values.podSecurity.enabled }}
+          securityContext:
+            {{- include "telemetry-pipeline.timescaleContainerSecurityContext" . | nindent 12 }}
+          {{- end }}
           ports:
             - containerPort: 5432
           env:

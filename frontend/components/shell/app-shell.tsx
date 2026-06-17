@@ -1,3 +1,4 @@
+import { KeyboardShortcuts } from "./keyboard-shortcuts";
 import { Sidebar } from "./sidebar";
 
 interface AppShellProps {
@@ -7,8 +8,11 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   return (
     <div className="flex min-h-screen bg-canvas">
+      <KeyboardShortcuts />
       <Sidebar />
-      <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+      <main id="main-content" className="flex min-w-0 flex-1 flex-col">
+        {children}
+      </main>
     </div>
   );
 }

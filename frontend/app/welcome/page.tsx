@@ -1,7 +1,7 @@
+"use client";
+
 import { ArrowRight, Radio, Shield, Zap } from "lucide-react";
 import Link from "next/link";
-
-"use client";
 
 import { OnboardingChecklist } from "@/components/onboarding/checklist";
 import { ThemeToggle } from "@/components/shell/theme-toggle";

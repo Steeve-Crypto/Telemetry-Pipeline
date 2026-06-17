@@ -10,12 +10,15 @@ import { AnomalyFeed } from "@/components/overview/anomaly-feed";
 import { HeroMetrics } from "@/components/overview/hero-metrics";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { OnboardingChecklist } from "@/components/onboarding/checklist";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
+import { useOnboardingProgress } from "@/hooks/use-onboarding-progress";
 import { SERIES_META } from "@/lib/chart-theme";
 
 export function MetricsOverview() {
   const { metrics, events, anomalies, chartPoints, sparklines, status, lastUpdated } =
     useDashboardData();
+  const { steps: onboardingSteps } = useOnboardingProgress(status, metrics, anomalies);
 
   const hasSignal = (metrics?.events_ingested ?? 0) > 0 || events.length > 0;
   const showEmpty = !hasSignal && status !== "connecting";
@@ -48,6 +51,10 @@ export function MetricsOverview() {
 
         <div className="mt-8">
           <HeroMetrics metrics={metrics} sparklines={sparklines} />
+        </div>
+
+        <div className="mt-6">
+          <OnboardingChecklist steps={onboardingSteps} />
         </div>
 
         {showEmpty ? (

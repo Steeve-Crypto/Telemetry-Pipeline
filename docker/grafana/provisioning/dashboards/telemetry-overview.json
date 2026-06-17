@@ -1,7 +1,7 @@
 {
   "uid": "telemetry-overview",
-  "title": "Telemetry Pipeline Overview",
-  "description": "Real-time sensor ingestion, latency, and anomaly detection",
+  "title": "Signal Overview",
+  "description": "Ingest → understand → act. Real-time sensor signal, latency, and anomalies.",
   "tags": [
     "telemetry",
     "anomaly",
@@ -85,7 +85,7 @@
     {
       "id": 1,
       "type": "stat",
-      "title": "Events (1h)",
+      "title": "Signal volume",
       "gridPos": {
         "h": 4,
         "w": 6,
@@ -146,7 +146,7 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "Active Devices (1h)",
+      "title": "Active devices",
       "gridPos": {
         "h": 4,
         "w": 6,
@@ -207,7 +207,7 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "Anomalies (1h)",
+      "title": "Anomalies detected",
       "gridPos": {
         "h": 4,
         "w": 6,
@@ -269,7 +269,7 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "Avg Ingest Latency",
+      "title": "Ingest latency",
       "gridPos": {
         "h": 4,
         "w": 6,
@@ -331,9 +331,9 @@
     {
       "id": 5,
       "type": "timeseries",
-      "title": "Event Ingestion Rate",
+      "title": "Ingest rate",
       "gridPos": {
-        "h": 8,
+        "h": 9,
         "w": 24,
         "x": 0,
         "y": 4
@@ -387,7 +387,7 @@
     {
       "id": 6,
       "type": "timeseries",
-      "title": "Events by Sensor Type",
+      "title": "Signal by sensor type",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -443,7 +443,7 @@
     {
       "id": 7,
       "type": "timeseries",
-      "title": "Industrial Temperature (avg)",
+      "title": "Temperature (avg)",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -500,7 +500,7 @@
     {
       "id": 8,
       "type": "timeseries",
-      "title": "Ingest Latency",
+      "title": "Ingest latency distribution",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -557,7 +557,7 @@
     {
       "id": 9,
       "type": "timeseries",
-      "title": "Anomaly Detection Rate",
+      "title": "Anomaly rate",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -613,7 +613,7 @@
     {
       "id": 10,
       "type": "timeseries",
-      "title": "Anomalies by Severity",
+      "title": "Severity mix",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -669,7 +669,7 @@
     {
       "id": 11,
       "type": "timeseries",
-      "title": "Pipeline Throughput (Prometheus)",
+      "title": "Pipeline throughput",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -725,7 +725,7 @@
     {
       "id": 12,
       "type": "timeseries",
-      "title": "Pipeline Processing Latency (Prometheus)",
+      "title": "Processing latency",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -800,7 +800,7 @@
     {
       "id": 13,
       "type": "timeseries",
-      "title": "Vibration \u2014 Windowed Mean",
+      "title": "Vibration (windowed)",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -856,7 +856,7 @@
     {
       "id": 14,
       "type": "table",
-      "title": "Recent Anomalies",
+      "title": "Recent anomalies",
       "gridPos": {
         "h": 10,
         "w": 24,

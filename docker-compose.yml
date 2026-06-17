@@ -149,7 +149,9 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:11.0.0
+    build:
+      context: ./docker/grafana
+      dockerfile: Dockerfile
     depends_on:
       timescaledb:
         condition: service_healthy

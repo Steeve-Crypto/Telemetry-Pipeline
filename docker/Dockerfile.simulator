@@ -5,9 +5,13 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY config ./config
+COPY docker/healthcheck-simulator.sh /healthcheck.sh
 
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir -e . && chmod +x /healthcheck.sh
 
 ENV PYTHONUNBUFFERED=1
+
+HEALTHCHECK --interval=15s --timeout=5s --retries=3 --start-period=20s \
+  CMD ["/healthcheck.sh"]
 
 CMD ["telemetry-simulator", "--config", "/app/config/pipeline.yaml", "--sensors", "/app/config/sensors.yaml"]

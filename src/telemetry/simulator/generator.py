@@ -8,6 +8,7 @@ import json
 import random
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
 import structlog
 import websockets
@@ -17,6 +18,8 @@ from telemetry.ingestion.kafka_producer import KafkaEventProducer
 from telemetry.models import SensorEvent
 
 logger = structlog.get_logger(__name__)
+
+HEARTBEAT_PATH = Path("/tmp/simulator.heartbeat")
 
 
 class SensorSimulator:
@@ -31,6 +34,10 @@ class SensorSimulator:
         self._rng = random.Random(seed)
         self._sequence: dict[str, int] = {}
         self._drift_offsets: dict[str, float] = {}
+
+    @staticmethod
+    def _touch_heartbeat() -> None:
+        HEARTBEAT_PATH.touch()
 
     def _device_ids(self) -> list[str]:
         n = self._pipeline.simulator.devices
@@ -101,6 +108,7 @@ class SensorSimulator:
                 event = self.generate_event(device_id)
                 await ws.send(event.model_dump_json())
                 sent += 1
+                self._touch_heartbeat()
                 if self._pipeline.simulator.burst_mode and sent % 50 == 0:
                     for _ in range(10):
                         burst_event = self.generate_event(self._rng.choice(devices))
@@ -129,6 +137,7 @@ class SensorSimulator:
                 event = self.generate_event(device_id)
                 await producer.publish(event)
                 sent += 1
+                self._touch_heartbeat()
                 if self._pipeline.simulator.burst_mode and sent % 50 == 0:
                     for _ in range(10):
                         burst_event = self.generate_event(self._rng.choice(devices))

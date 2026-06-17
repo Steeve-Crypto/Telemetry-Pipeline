@@ -72,6 +72,13 @@ services:
       - ./config:/app/config:ro
     ports:
       - "8081:8080"   # host 8081 — 8080 is often taken locally
+    healthcheck:
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
     command: >
       telemetry-pipeline --config /app/config/pipeline.docker.yaml --sensors /app/config/sensors.yaml
 
@@ -81,11 +88,18 @@ services:
       dockerfile: docker/Dockerfile.simulator
     depends_on:
       pipeline:
-        condition: service_started
+        condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
     volumes:
       - ./config:/app/config:ro
+    healthcheck:
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+    restart: unless-stopped
     command: >
       sh -c "sleep 8 &&
       telemetry-simulator --config /app/config/pipeline.docker.yaml --sensors /app/config/sensors.yaml --duration 3600"
@@ -93,7 +107,8 @@ services:
   prometheus:
     image: prom/prometheus:v2.52.0
     depends_on:
-      - pipeline
+      pipeline:
+        condition: service_healthy
     ports:
       - "9090:9090"
     volumes:

@@ -6,6 +6,7 @@ interface MetricCardProps {
   unit?: string;
   hint?: string;
   accent?: "default" | "accent" | "alert";
+  footer?: React.ReactNode;
   className?: string;
 }
 
@@ -15,6 +16,7 @@ export function MetricCard({
   unit,
   hint,
   accent = "default",
+  footer,
   className,
 }: MetricCardProps) {
   const display =
@@ -41,6 +43,7 @@ export function MetricCard({
         )}
       </p>
       {hint && <p className="mt-2 text-xs text-muted">{hint}</p>}
+      {footer && <div className="mt-4">{footer}</div>}
     </article>
   );
 }

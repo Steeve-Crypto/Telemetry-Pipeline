@@ -1,6 +1,9 @@
 # Signal — Telemetry Frontend
 
-Fable-inspired product UI for the telemetry pipeline. Phase 1: design system + overview shell wired to `/api/metrics`.
+Fable-inspired product UI for the telemetry pipeline.
+
+- **Phase 1**: design system + overview shell
+- **Phase 2**: sparklines, sensor chart, anomaly timeline, latency bars (Recharts)
 
 ## Dev
 

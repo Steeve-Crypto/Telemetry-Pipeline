@@ -113,15 +113,17 @@ Replace Streamlit as the **customer-facing** UI. Keep Grafana for SRE/ML ops.
 
 **Outcome**: Branded shell at `:3001` with live metrics from pipeline API.
 
-### Phase 2 — Live dashboard (1–2 weeks)
+### Phase 2 — Live dashboard (1–2 weeks) ✅
 
-- [ ] **Overview**: 4 hero metrics (ingested, valid, anomalies, throughput) with sparklines
-- [ ] **Primary chart**: multi-series line (temperature / pressure / vibration) — Recharts or Visx, thin strokes, muted grid
-- [ ] **Anomaly feed**: right rail timeline with severity chips and one-line “story” (`ensemble=0.82, drift detected`)
-- [ ] **SSE or 1s polling** from `/api/metrics` + `/api/events` (replace Streamlit `st.rerun` hack)
-- [ ] Empty state: illustration + “Start the simulator or connect a device” CTA
+- [x] **Overview**: 4 hero metrics with Recharts sparklines (24-point history)
+- [x] **Primary chart**: multi-series line (temperature / pressure / vibration)
+- [x] **Anomaly feed**: right-rail timeline with severity chips + drift flags
+- [x] **1.5s polling** from `/api/metrics` + `/api/events` + `/api/anomalies`
+- [x] **Latency profile**: animated horizontal bars (not plain text)
+- [x] Empty state with docker compose CTA
+- [ ] SSE stream (optional; polling sufficient for now)
 
-**Outcome**: Replaces Streamlit for day-to-day monitoring.
+**Outcome**: Visual dashboard replaces Streamlit for day-to-day monitoring.
 
 ### Phase 3 — Device & tenant depth (1 week)
 

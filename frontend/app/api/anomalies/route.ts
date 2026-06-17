@@ -5,5 +5,5 @@ import { proxyToPipeline } from "@/lib/upstream";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  return proxyToPipeline(request, "/api/metrics");
+  return proxyToPipeline(request, "/api/anomalies");
 }

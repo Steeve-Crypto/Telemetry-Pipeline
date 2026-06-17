@@ -13,3 +13,5 @@ venv/
 htmlcov/
 *.log
 benchmark_report.json
+eval_report.json
+models/*.onnx

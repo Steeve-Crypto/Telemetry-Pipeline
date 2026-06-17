@@ -56,6 +56,8 @@ telemetry-simulator = "telemetry.simulator.generator:main"
 telemetry-replay = "telemetry.simulator.replay:main"
 telemetry-dashboard = "telemetry.viz.streamlit_app:main"
 telemetry-benchmark = "telemetry.benchmark:main"
+telemetry-eval = "telemetry.eval_cli:main"
+telemetry-export-onnx = "telemetry.export_onnx_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/telemetry"]

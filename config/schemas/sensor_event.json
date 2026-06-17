@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://telemetry.local/schemas/sensor_event.json",
+  "title": "SensorEvent",
+  "type": "object",
+  "required": ["device_id", "sensor_type", "timestamp", "metrics"],
+  "additionalProperties": false,
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
+    "sensor_type": {
+      "type": "string",
+      "enum": ["industrial", "vehicle", "network"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "metrics": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "is_anomaly": {
+      "type": "boolean"
+    },
+    "anomaly_label": {
+      "type": "string"
+    }
+  }
+}

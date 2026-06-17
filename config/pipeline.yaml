@@ -1,0 +1,75 @@
+pipeline:
+  name: telemetry-pipeline
+  environment: local
+
+ingestion:
+  transport: websocket  # mqtt | kafka | websocket
+  mqtt:
+    host: localhost
+    port: 1883
+    topic: sensors/+/telemetry
+    qos: 1
+  kafka:
+    bootstrap_servers: localhost:9092
+    topic: telemetry.events
+    group_id: telemetry-pipeline
+    auto_offset_reset: latest
+  websocket:
+    host: 0.0.0.0
+    port: 8765
+
+validation:
+  schema_path: config/schemas/sensor_event.json
+  dedup_window_seconds: 5
+  drop_invalid: true
+
+processing:
+  window_size_seconds: 10
+  slide_interval_seconds: 2
+  aggregations:
+    - mean
+    - min
+    - max
+    - std
+    - count
+
+storage:
+  backend: timescale  # timescale | memory
+  timescale:
+    dsn: postgresql://telemetry:telemetry@localhost:5432/telemetry
+    batch_size: 100
+    flush_interval_seconds: 1.0
+
+anomaly:
+  enabled: true
+  ensemble_weights:
+    statistical: 0.35
+    isolation_forest: 0.45
+    rule_based: 0.20
+  statistical:
+    z_score_threshold: 3.5
+    ewma_alpha: 0.1
+    min_samples: 20
+  isolation_forest:
+    n_trees: 10
+    window_size: 256
+    seed: 42
+  drift:
+    enabled: true
+    adwin_delta: 0.002
+    check_interval_seconds: 30
+  alert_threshold: 0.65
+
+alerting:
+  enabled: false
+  slack_webhook_url: ""
+  min_severity: medium
+
+simulator:
+  devices: 5
+  interval_ms: 100
+  anomaly_rate: 0.02
+  burst_mode: false
+
+metrics:
+  latency_histogram_buckets_ms: [1, 5, 10, 25, 50, 100, 250, 500, 1000]

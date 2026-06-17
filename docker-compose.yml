@@ -1,0 +1,93 @@
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: telemetry
+      POSTGRES_PASSWORD: telemetry
+      POSTGRES_DB: telemetry
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./docker/init-timescale.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U telemetry -d telemetry"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redpanda:
+    image: redpandadata/redpanda:v24.1.5
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --node-id=0
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+    ports:
+      - "19092:19092"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy'"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./docker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  pipeline:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    environment:
+      TELEMETRY_PIPELINE_CONFIG_PATH: /app/config/pipeline.docker.yaml
+    volumes:
+      - ./config:/app/config:ro
+    ports:
+      - "8765:8765"
+      - "8080:8080"
+    command: >
+      sh -c "pip install -e . -q &&
+      telemetry-pipeline --config /app/config/pipeline.docker.yaml --sensors /app/config/sensors.yaml"
+
+  simulator:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.simulator
+    depends_on:
+      - pipeline
+    volumes:
+      - ./config:/app/config:ro
+    command: >
+      sh -c "sleep 5 &&
+      telemetry-simulator --config /app/config/pipeline.docker.yaml --sensors /app/config/sensors.yaml --duration 3600"
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  timescale_data:
+  grafana_data:

@@ -1,0 +1,34 @@
+pipeline:
+  name: telemetry-pipeline
+  environment: docker
+
+ingestion:
+  transport: websocket
+  websocket:
+    host: 0.0.0.0
+    port: 8765
+
+validation:
+  schema_path: config/schemas/sensor_event.json
+  dedup_window_seconds: 5
+  drop_invalid: true
+
+processing:
+  window_size_seconds: 10
+  slide_interval_seconds: 2
+
+storage:
+  backend: timescale
+  timescale:
+    dsn: postgresql://telemetry:telemetry@timescaledb:5432/telemetry
+    batch_size: 50
+    flush_interval_seconds: 1.0
+
+anomaly:
+  enabled: true
+  alert_threshold: 0.65
+
+simulator:
+  devices: 10
+  interval_ms: 100
+  anomaly_rate: 0.03

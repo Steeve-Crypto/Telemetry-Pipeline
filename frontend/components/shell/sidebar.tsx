@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, AlertTriangle, Cpu, ExternalLink, Radio } from "lucide-react";
+import { Activity, AlertTriangle, Cpu, LayoutDashboard, Radio } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -10,6 +10,7 @@ const nav = [
   { href: "/", label: "Overview", icon: Activity },
   { href: "/devices", label: "Devices", icon: Cpu },
   { href: "/anomalies", label: "Anomalies", icon: AlertTriangle },
+  { href: "/ops", label: "Ops", icon: LayoutDashboard },
 ];
 
 export function Sidebar() {
@@ -54,15 +55,6 @@ export function Sidebar() {
         })}
       </nav>
 
-      <a
-        href="http://localhost:3000"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-auto flex items-center gap-2 rounded-input px-3 py-2 text-xs text-muted transition-colors hover:bg-canvas hover:text-ink"
-      >
-        <ExternalLink className="h-3.5 w-3.5" />
-        Grafana ops
-      </a>
     </aside>
   );
 }

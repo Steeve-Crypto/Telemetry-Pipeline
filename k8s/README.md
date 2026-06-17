@@ -70,6 +70,16 @@ telemetry-kafka-init --config config/pipeline.k8s.yaml
 
 The HPA scales pipeline pods from 2–8 based on CPU. Increase `maxReplicas` for higher throughput.
 
+## Load testing (100k+ eps)
+
+```bash
+# In-cluster Kafka producer flood
+kubectl apply -f k8s/load-test-job.yaml
+kubectl -n telemetry logs job/telemetry-load-test -f
+```
+
+For local runs use `telemetry-load` or `./scripts/run-load-test.sh` (see root README).
+
 ## Security (Helm)
 
 Pod Security Standards and NetworkPolicies are configured via the Helm chart (`podSecurity.*`, `networkPolicy.*`).

@@ -1,0 +1,52 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: telemetry-load-test
+  namespace: telemetry
+  labels:
+    app: telemetry-load-test
+    app.kubernetes.io/part-of: telemetry-pipeline
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: telemetry-load-test
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: load-test
+          image: telemetry-pipeline:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - telemetry-load
+            - --mode
+            - kafka-producer
+            - --config
+            - /app/config/pipeline.k8s.yaml
+            - --sensors
+            - /app/config/sensors.yaml
+            - --events
+            - "1000000"
+            - --target-eps
+            - "100000"
+            - --workers
+            - "8"
+            - --report
+            - /tmp/load_test_report.json
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+          resources:
+            requests:
+              cpu: "2"
+              memory: 2Gi
+            limits:
+              cpu: "4"
+              memory: 4Gi
+      volumes:
+        - name: config
+          configMap:
+            name: telemetry-pipeline-config

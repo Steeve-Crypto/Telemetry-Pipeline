@@ -290,6 +290,28 @@ class TelemetryPipeline:
         else:
             self._prometheus.update(self._metrics, processing_latency_ms=processing_ms)
 
+    async def process_event_minimal(self, raw_event: object) -> None:
+        """Fast ingest path for load testing (validation/windows/anomaly skipped)."""
+        from datetime import datetime, timezone
+
+        from telemetry.models import EnrichedEvent, SensorEvent
+
+        event = (
+            raw_event
+            if isinstance(raw_event, SensorEvent)
+            else SensorEvent.model_validate(raw_event)
+        )
+        self._metrics.events_ingested += 1
+        self._metrics.events_valid += 1
+        self._throughput.record()
+        enriched = EnrichedEvent(
+            **event.model_dump(),
+            ingested_at=datetime.now(timezone.utc),
+            validation_errors=[],
+        )
+        await self._storage.write_event(enriched)
+        self._metrics.processing_rate_eps = self._throughput.events_per_second
+
     async def process_batch(self, events: list) -> None:
         for event in events:
             await self.process_event(event)

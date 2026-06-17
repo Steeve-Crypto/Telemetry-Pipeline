@@ -1,0 +1,79 @@
+pipeline:
+  name: telemetry-pipeline
+  environment: load-test
+
+ingestion:
+  transport: kafka
+  kafka:
+    bootstrap_servers: localhost:9092
+    topic: telemetry.events
+    group_id: telemetry-pipeline-load
+    auto_offset_reset: latest
+    replay_mode: false
+    enable_auto_commit: false
+    commit_interval_seconds: 5.0
+    topic_per_tenant: false
+    partitions_per_topic: 12
+    auto_create_topics: true
+  websocket:
+    host: 0.0.0.0
+    port: 8765
+
+validation:
+  schema_path: config/schemas/sensor_event.json
+  dedup_window_seconds: 0
+  drop_invalid: true
+
+processing:
+  window_size_seconds: 3600
+  slide_interval_seconds: 3600
+  aggregations:
+    - mean
+    - count
+
+storage:
+  backend: memory
+  memory:
+    count_only: true
+    max_retained_events: 0
+
+anomaly:
+  enabled: false
+
+alerting:
+  enabled: false
+
+simulator:
+  devices: 200
+  interval_ms: 0
+  anomaly_rate: 0.0
+  burst_mode: false
+
+prometheus:
+  enabled: false
+
+viz:
+  enabled: false
+
+opentelemetry:
+  enabled: false
+
+tenancy:
+  enabled: false
+
+load_test:
+  target_eps: 100000
+  default_events: 1000000
+  default_duration_seconds: 30
+  default_workers: 8
+  warmup_events: 10000
+  batch_size: 1000
+  report_path: load_test_report.json
+  latency_sample_rate: 1000
+
+logging:
+  level: WARNING
+  format: json
+
+shutdown:
+  drain_timeout_seconds: 10

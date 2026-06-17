@@ -76,10 +76,16 @@ class ClickHouseConfig(BaseModel):
     flush_interval_seconds: float = 1.0
 
 
+class MemoryStorageConfig(BaseModel):
+    count_only: bool = False
+    max_retained_events: int = 10_000
+
+
 class StorageConfig(BaseModel):
     backend: Literal["timescale", "memory", "clickhouse"] = "timescale"
     timescale: TimescaleConfig = Field(default_factory=TimescaleConfig)
     clickhouse: ClickHouseConfig = Field(default_factory=ClickHouseConfig)
+    memory: MemoryStorageConfig = Field(default_factory=MemoryStorageConfig)
 
 
 class StatisticalAnomalyConfig(BaseModel):
@@ -204,6 +210,17 @@ class BenchmarkConfig(BaseModel):
     report_path: str = "benchmark_report.json"
 
 
+class LoadTestConfig(BaseModel):
+    target_eps: float = 100_000.0
+    default_events: int = 1_000_000
+    default_duration_seconds: float = 30.0
+    default_workers: int = 4
+    warmup_events: int = 10_000
+    batch_size: int = 500
+    report_path: str = "load_test_report.json"
+    latency_sample_rate: int = 1000
+
+
 class EvalConfig(BaseModel):
     warmup_events: int = 50
     threshold: float | None = None
@@ -227,6 +244,7 @@ class PipelineYamlConfig(BaseModel):
     prometheus: PrometheusConfig = Field(default_factory=PrometheusConfig)
     metrics_backend: MetricsBackendConfig = Field(default_factory=MetricsBackendConfig)
     benchmark: BenchmarkConfig = Field(default_factory=BenchmarkConfig)
+    load_test: LoadTestConfig = Field(default_factory=LoadTestConfig)
     eval: EvalConfig = Field(default_factory=EvalConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     opentelemetry: OpenTelemetryConfig = Field(default_factory=OpenTelemetryConfig)

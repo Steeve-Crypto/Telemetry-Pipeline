@@ -201,6 +201,10 @@ telemetry-dashboard
 
 # Throughput/latency benchmark
 telemetry-benchmark --events 10000 --warmup 500
+
+# Load test (100k+ eps target)
+telemetry-load --mode direct --events 100000 --target-eps 100000
+MODE=kafka-producer EVENTS=1000000 ./scripts/run-load-test.sh
 ```
 
 ## Testing
@@ -208,8 +212,10 @@ telemetry-benchmark --events 10000 --warmup 500
 ```bash
 pip install -e ".[dev]"
 pytest -v
-pytest tests/test_load.py -v      # throughput benchmark
-pytest tests/test_latency.py -v   # latency budget check
+pytest tests/test_load.py -v           # 1k-event throughput smoke
+pytest tests/test_load_100k.py -v      # load harness + 5k direct soak
+pytest tests/test_latency.py -v        # latency budget check
+RUN_SLOW_LOAD=1 pytest -m slow -v      # optional 100k-event soak
 ```
 
 ### Config validation
@@ -301,11 +307,39 @@ Then set `anomaly.autoencoder.backend: onnx` in config.
 
 ## Performance Targets
 
-| Metric | Local (memory) | Docker (Timescale) |
-|--------|----------------|---------------------|
-| Throughput | >1,000 eps | 500+ eps |
-| Per-event processing | <100ms | <100ms |
-| End-to-end ingest | <50ms typical | <100ms |
+| Metric | Local (memory) | Docker (Timescale) | Load test target |
+|--------|----------------|---------------------|------------------|
+| Throughput | >1,000 eps | 500+ eps | 100,000+ eps (Kafka producers / scaled K8s) |
+| Per-event processing | <100ms | <100ms | sampled in `telemetry-load` |
+| End-to-end ingest | <50ms typical | <100ms | `e2e-kafka` mode |
+
+### Load testing at 100k+ eps
+
+Use `config/pipeline.load.yaml` (anomaly/Prometheus off, count-only memory storage):
+
+```bash
+# Direct: in-process minimal ingest path (multi-core via --workers)
+telemetry-load --mode direct --events 100000 --workers 8 --target-eps 100000
+
+# Kafka producer flood — primary path to 100k+ eps (needs Redpanda/Kafka)
+telemetry-load --mode kafka-producer --events 1000000 --workers 8 --target-eps 100000
+
+# End-to-end: producers + pipeline consumer (full validation path)
+telemetry-load --mode e2e-kafka --duration 30 --workers 8 --target-eps 100000
+
+./scripts/run-load-test.sh   # MODE=direct|kafka-producer|e2e-kafka
+```
+
+| Mode | What it measures |
+|------|------------------|
+| `direct` | Single-host ingest ceiling (`process_event_minimal`, count-only storage) |
+| `kafka-producer` | Multi-process publish rate to Kafka (100k+ eps with enough workers/partitions) |
+| `e2e-kafka` | Producer + consumer throughput with full pipeline features |
+
+Kubernetes: `kubectl apply -f k8s/load-test-job.yaml` (after pipeline + Redpanda are up).
+Scale pipeline HPA replicas to consume sustained Kafka load.
+
+Reports are written to `load_test_report.json` with producer/consumer eps and latency percentiles.
 
 ## License
 

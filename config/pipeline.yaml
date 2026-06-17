@@ -142,6 +142,16 @@ benchmark:
   warmup_events: 500
   report_path: benchmark_report.json
 
+load_test:
+  target_eps: 100000
+  default_events: 1000000
+  default_duration_seconds: 30
+  default_workers: 4
+  warmup_events: 10000
+  batch_size: 500
+  report_path: load_test_report.json
+  latency_sample_rate: 1000
+
 eval:
   warmup_events: 50
   threshold: null

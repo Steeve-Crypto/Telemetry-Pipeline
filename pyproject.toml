@@ -56,6 +56,7 @@ telemetry-simulator = "telemetry.simulator.generator:main"
 telemetry-replay = "telemetry.simulator.replay:main"
 telemetry-dashboard = "telemetry.viz.streamlit_app:main"
 telemetry-benchmark = "telemetry.benchmark:main"
+telemetry-load = "telemetry.load_test:main"
 telemetry-eval = "telemetry.eval_cli:main"
 telemetry-export-onnx = "telemetry.export_onnx_cli:main"
 telemetry-kafka-init = "telemetry.kafka_init_cli:main"
@@ -70,6 +71,10 @@ packages = ["src/telemetry"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "slow: long-running load tests (RUN_SLOW_LOAD=1)",
+]
+addopts = "-m 'not slow'"
 
 [tool.ruff]
 line-length = 100

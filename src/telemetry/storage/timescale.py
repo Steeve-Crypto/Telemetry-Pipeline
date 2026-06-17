@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 import structlog
 
-from telemetry.config import PipelineYamlConfig, StorageConfig
+from telemetry.config import MemoryStorageConfig, PipelineYamlConfig, StorageConfig
 from telemetry.models import AnomalyScore, EnrichedEvent, WindowStats
 
 logger = structlog.get_logger(__name__)
@@ -97,10 +97,14 @@ class StorageBackend(ABC):
 
 
 class MemoryStorage(StorageBackend):
-    def __init__(self) -> None:
+    def __init__(self, config: MemoryStorageConfig | None = None) -> None:
+        self._cfg = config or MemoryStorageConfig()
         self.events: list[EnrichedEvent] = []
         self.window_stats: list[WindowStats] = []
         self.anomalies: list[AnomalyScore] = []
+        self.event_count: int = 0
+        self.window_stat_count: int = 0
+        self.anomaly_count: int = 0
 
     async def connect(self) -> None:
         pass
@@ -112,12 +116,24 @@ class MemoryStorage(StorageBackend):
         pass
 
     async def write_event(self, event: EnrichedEvent) -> None:
+        self.event_count += 1
+        if self._cfg.count_only:
+            return
         self.events.append(event)
+        overflow = len(self.events) - self._cfg.max_retained_events
+        if overflow > 0:
+            del self.events[:overflow]
 
     async def write_window_stats(self, stats: list[WindowStats]) -> None:
+        self.window_stat_count += len(stats)
+        if self._cfg.count_only:
+            return
         self.window_stats.extend(stats)
 
     async def write_anomaly(self, score: AnomalyScore) -> None:
+        self.anomaly_count += 1
+        if self._cfg.count_only:
+            return
         self.anomalies.append(score)
 
     async def recent_events(self, limit: int = 100, tenant_id: str | None = None) -> list[EnrichedEvent]:
@@ -383,7 +399,7 @@ def _row_to_event(row: object) -> EnrichedEvent:
 
 def create_storage(config: PipelineYamlConfig) -> StorageBackend:
     if config.storage.backend == "memory":
-        return MemoryStorage()
+        return MemoryStorage(config.storage.memory)
     if config.storage.backend == "clickhouse":
         from telemetry.storage.clickhouse import ClickHouseStorage
 

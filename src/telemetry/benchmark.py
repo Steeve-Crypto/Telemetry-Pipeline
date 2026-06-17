@@ -13,6 +13,7 @@ from pathlib import Path
 import structlog
 
 from telemetry.config import load_pipeline_config, load_sensors_config
+from telemetry.logging_setup import configure_logging
 from telemetry.pipeline import InMemoryPipeline
 from telemetry.prometheus import PrometheusExporter
 from telemetry.simulator.generator import SensorSimulator
@@ -64,6 +65,7 @@ async def run_benchmark(
 ) -> BenchmarkReport:
     pipeline_config = load_pipeline_config(Path(config_path))
     sensors_config = load_sensors_config(Path(sensors_path))
+    configure_logging(pipeline_config.logging)
     pipeline_config.storage.backend = "memory"
     pipeline_config.viz.enabled = False
     pipeline_config.prometheus.enabled = True

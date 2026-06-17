@@ -66,8 +66,12 @@ def _validate_processing(config: PipelineYamlConfig, errors: list[str]) -> None:
 def _validate_storage(config: PipelineYamlConfig, errors: list[str]) -> None:
     if config.storage.backend == "timescale" and not config.storage.timescale.dsn:
         errors.append("storage.timescale.dsn is required when backend=timescale")
+    if config.storage.backend == "clickhouse" and not config.storage.clickhouse.host:
+        errors.append("storage.clickhouse.host is required when backend=clickhouse")
     if config.storage.timescale.batch_size <= 0:
         errors.append("storage.timescale.batch_size must be > 0")
+    if config.storage.clickhouse.batch_size <= 0:
+        errors.append("storage.clickhouse.batch_size must be > 0")
 
 
 def _validate_anomaly(config: PipelineYamlConfig, errors: list[str]) -> None:

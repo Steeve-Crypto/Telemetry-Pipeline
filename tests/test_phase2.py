@@ -40,3 +40,31 @@ async def test_graceful_shutdown_flushes_memory(pipeline_config, sensors_config)
     await pipeline.process_event(await queue.get())
     await pipeline.stop()
     assert pipeline.metrics.events_valid >= 1
+
+
+def test_json_logging_setup(pipeline_config):
+    from telemetry.logging_setup import configure_logging
+
+    pipeline_config.logging.format = "json"
+    configure_logging(pipeline_config.logging)
+
+
+def test_clickhouse_storage_factory(pipeline_config):
+    from telemetry.storage.timescale import create_storage
+
+    pipeline_config.storage.backend = "clickhouse"
+    storage = create_storage(pipeline_config)
+    assert storage.__class__.__name__ == "ClickHouseStorage"
+
+
+def test_otel_tracer_disabled(pipeline_config):
+    from telemetry.otel import TelemetryTracer
+
+    pipeline_config.opentelemetry.enabled = False
+    tracer = TelemetryTracer(pipeline_config.opentelemetry)
+    assert not tracer.enabled
+
+
+def test_kafka_manual_commit_defaults(pipeline_config):
+    assert pipeline_config.ingestion.kafka.enable_auto_commit is False
+    assert pipeline_config.ingestion.kafka.commit_interval_seconds == 5.0

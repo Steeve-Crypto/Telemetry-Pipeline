@@ -1,0 +1,36 @@
+# Production overrides — use with ArgoCD valueFiles or helm -f
+
+secrets:
+  create: false  # manage via External Secrets Operator / SealedSecrets
+  existingSecretName: telemetry-pipeline-secrets
+
+pipeline:
+  replicas: 3
+  autoscaling:
+    minReplicas: 3
+    maxReplicas: 12
+    targetCPUUtilizationPercentage: 65
+
+simulator:
+  enabled: false
+
+timescaledb:
+  storage: 50Gi
+
+victoriametrics:
+  retentionMonths: 24
+  storage: 20Gi
+
+ingress:
+  host: telemetry.example.com
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
+images:
+  pipeline:
+    repository: ghcr.io/your-org/telemetry-pipeline
+    tag: "0.1.0"
+  simulator:
+    repository: ghcr.io/your-org/telemetry-pipeline-simulator
+    tag: "0.1.0"

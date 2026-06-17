@@ -1,0 +1,107 @@
+# Default values for telemetry-pipeline Helm chart.
+
+nameOverride: ""
+fullnameOverride: ""
+
+namespace:
+  create: true
+  name: telemetry
+
+global:
+  imagePullPolicy: IfNotPresent
+
+images:
+  pipeline:
+    repository: telemetry-pipeline
+    tag: latest
+  simulator:
+    repository: telemetry-pipeline-simulator
+    tag: latest
+  timescaledb: timescale/timescaledb:latest-pg16
+  redpanda: redpandadata/redpanda:v24.1.5
+  victoriametrics: victoriametrics/victoria-metrics:v1.101.0
+
+secrets:
+  create: true
+  existingSecretName: ""  # use pre-provisioned secret (e.g. External Secrets) when create=false
+  # Override in production via --set or ExternalSecrets; never commit real secrets.
+  postgresPassword: telemetry
+  tenantKeys: '{"acme":"acme-secret-key","globex":"globex-secret-key"}'
+  slackWebhookUrl: ""
+
+pipeline:
+  enabled: true
+  replicas: 2
+  strictStartup: true
+  terminationGracePeriodSeconds: 30
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+
+simulator:
+  enabled: true
+  replicas: 1
+  durationSeconds: 86400
+  startupSleepSeconds: 15
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+timescaledb:
+  enabled: true
+  storage: 10Gi
+  storageClass: ""
+
+redpanda:
+  enabled: true
+  memory: 512M
+
+kafka:
+  initJob:
+    enabled: true
+  sharedTopic: telemetry.events
+  partitions: 3
+  replicationFactor: 1
+  # Per-tenant topics (topic_per_tenant must be enabled in pipeline config)
+  tenants:
+    - default
+    - acme
+    - globex
+
+victoriametrics:
+  enabled: true
+  retentionMonths: 12
+  scrapeInterval: 5s
+  storage: 5Gi
+  storageClass: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+ingress:
+  enabled: true
+  className: nginx
+  host: telemetry.local
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# Embedded config files live in chart files/ — override by replacing those files or
+# using ArgoCD Helm parameters post-render.
+config:
+  pipelineFile: pipeline.k8s.yaml
+  sensorsFile: sensors.yaml

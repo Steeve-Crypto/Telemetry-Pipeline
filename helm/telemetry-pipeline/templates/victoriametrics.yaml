@@ -1,0 +1,78 @@
+{{- if .Values.victoriametrics.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: victoriametrics
+  namespace: {{ include "telemetry-pipeline.namespace" . }}
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+    app: victoriametrics
+spec:
+  ports:
+    - port: 8428
+      targetPort: 8428
+  selector:
+    app: victoriametrics
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: victoriametrics
+  namespace: {{ include "telemetry-pipeline.namespace" . }}
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+    app: victoriametrics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: victoriametrics
+  template:
+    metadata:
+      labels:
+        app: victoriametrics
+    spec:
+      containers:
+        - name: victoriametrics
+          image: {{ .Values.images.victoriametrics | quote }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          args:
+            - "-storageDataPath=/storage"
+            - "-retentionPeriod={{ .Values.victoriametrics.retentionMonths }}"
+            - "-httpListenAddr=:8428"
+            - "-promscrape.config=/config/prometheus.yml"
+          ports:
+            - containerPort: 8428
+          volumeMounts:
+            - name: storage
+              mountPath: /storage
+            - name: scrape-config
+              mountPath: /config
+          resources:
+            {{- toYaml .Values.victoriametrics.resources | nindent 12 }}
+      volumes:
+        - name: storage
+          {{- if .Values.victoriametrics.storageClass }}
+          persistentVolumeClaim:
+            claimName: {{ include "telemetry-pipeline.fullname" . }}-vm
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: scrape-config
+          configMap:
+            name: {{ include "telemetry-pipeline.fullname" . }}-vm-scrape
+---
+{{- if .Values.victoriametrics.storageClass }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "telemetry-pipeline.fullname" . }}-vm
+  namespace: {{ include "telemetry-pipeline.namespace" . }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: {{ .Values.victoriametrics.storageClass | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.victoriametrics.storage }}
+{{- end }}
+{{- end }}

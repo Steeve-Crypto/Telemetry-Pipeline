@@ -1,5 +1,8 @@
 # Kubernetes Deployment
 
+> **Recommended:** use the Helm chart (`helm/telemetry-pipeline/`) and ArgoCD GitOps (`gitops/argocd/`).
+> The raw manifests below remain for kustomize-based installs.
+
 Deploy the telemetry pipeline to Kubernetes with multi-tenant API keys and horizontal scaling.
 
 ## Prerequisites
@@ -15,14 +18,24 @@ docker build -f docker/Dockerfile -t telemetry-pipeline:latest .
 docker build -f docker/Dockerfile.simulator -t telemetry-pipeline-simulator:latest .
 ```
 
-## Deploy
+## Deploy (Helm)
 
 ```bash
-# Copy and edit secrets
-cp k8s/secret.example.yaml k8s/secret.yaml
-# Edit TELEMETRY_TENANT_KEYS and POSTGRES_PASSWORD
+helm upgrade --install telemetry-pipeline ./helm/telemetry-pipeline -n telemetry --create-namespace
+```
 
+## Deploy (Kustomize — legacy)
+
+```bash
+cp k8s/secret.example.yaml k8s/secret.yaml
 kubectl apply -k k8s/
+```
+
+## GitOps (ArgoCD)
+
+```bash
+# Edit repoURL in gitops/argocd/application-*.yaml first
+kubectl apply -k gitops/argocd/
 ```
 
 ## Verify

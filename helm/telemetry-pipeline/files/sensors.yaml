@@ -1,0 +1,97 @@
+sensor_types:
+  industrial:
+    description: Factory machine telemetry
+    fields:
+      temperature:
+        unit: celsius
+        min: -20
+        max: 120
+        baseline: 65
+        noise_std: 2.0
+      pressure:
+        unit: bar
+        min: 0
+        max: 10
+        baseline: 4.5
+        noise_std: 0.15
+      vibration:
+        unit: mm/s
+        min: 0
+        max: 50
+        baseline: 3.2
+        noise_std: 0.4
+    anomaly_patterns:
+      - type: spike
+        field: temperature
+        multiplier: 2.5
+      - type: drift
+        field: vibration
+        slope: 0.05
+      - type: flatline
+        field: pressure
+
+  vehicle:
+    description: Fleet vehicle telemetry
+    fields:
+      speed:
+        unit: km/h
+        min: 0
+        max: 200
+        baseline: 60
+        noise_std: 5
+      engine_rpm:
+        unit: rpm
+        min: 0
+        max: 8000
+        baseline: 2200
+        noise_std: 150
+      fuel_level:
+        unit: percent
+        min: 0
+        max: 100
+        baseline: 72
+        noise_std: 0.5
+    anomaly_patterns:
+      - type: spike
+        field: engine_rpm
+        multiplier: 1.8
+
+  network:
+    description: Network flow telemetry
+    fields:
+      bytes_in:
+        unit: bytes
+        min: 0
+        max: 1000000000
+        baseline: 50000
+        noise_std: 8000
+      bytes_out:
+        unit: bytes
+        min: 0
+        max: 1000000000
+        baseline: 30000
+        noise_std: 5000
+      packet_loss:
+        unit: percent
+        min: 0
+        max: 100
+        baseline: 0.1
+        noise_std: 0.05
+    anomaly_patterns:
+      - type: spike
+        field: bytes_in
+        multiplier: 10
+
+rules:
+  temperature:
+    warn_above: 95
+    critical_above: 110
+  pressure:
+    warn_below: 1.0
+    critical_below: 0.5
+  vibration:
+    warn_above: 15
+    critical_above: 25
+  packet_loss:
+    warn_above: 1.0
+    critical_above: 5.0

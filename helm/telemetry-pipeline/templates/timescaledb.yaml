@@ -1,0 +1,76 @@
+{{- if .Values.timescaledb.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: timescaledb
+  namespace: {{ include "telemetry-pipeline.namespace" . }}
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+    app: timescaledb
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: timescaledb
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: timescaledb
+  namespace: {{ include "telemetry-pipeline.namespace" . }}
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+    app: timescaledb
+spec:
+  serviceName: timescaledb
+  replicas: 1
+  selector:
+    matchLabels:
+      app: timescaledb
+  template:
+    metadata:
+      labels:
+        app: timescaledb
+    spec:
+      containers:
+        - name: timescaledb
+          image: {{ .Values.images.timescaledb | quote }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: telemetry
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "telemetry-pipeline.secretName" . }}
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: telemetry
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "telemetry", "-d", "telemetry"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "telemetry", "-d", "telemetry"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.timescaledb.storageClass }}
+        storageClassName: {{ .Values.timescaledb.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.timescaledb.storage }}
+{{- end }}

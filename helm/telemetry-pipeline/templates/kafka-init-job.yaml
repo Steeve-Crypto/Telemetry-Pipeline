@@ -1,0 +1,33 @@
+{{- if and .Values.redpanda.enabled .Values.kafka.initJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "telemetry-pipeline.fullname" . }}-kafka-init
+  namespace: {{ include "telemetry-pipeline.namespace" . }}
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      labels:
+        app: kafka-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: kafka-init
+          image: {{ .Values.images.redpanda | quote }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              rpk topic create {{ .Values.kafka.sharedTopic }} -p {{ .Values.kafka.partitions }} -r {{ .Values.kafka.replicationFactor }} --brokers redpanda:9092 || true
+              {{- range .Values.kafka.tenants }}
+              rpk topic create telemetry.events.{{ . }} -p {{ $.Values.kafka.partitions }} -r {{ $.Values.kafka.replicationFactor }} --brokers redpanda:9092 || true
+              {{- end }}
+              echo "kafka topics ready"
+{{- end }}

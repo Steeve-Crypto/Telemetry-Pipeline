@@ -1,0 +1,94 @@
+pipeline:
+  name: telemetry-pipeline
+  environment: kubernetes
+
+ingestion:
+  transport: kafka
+  kafka:
+    bootstrap_servers: redpanda:9092
+    topic: telemetry.events
+    group_id: telemetry-pipeline
+    auto_offset_reset: latest
+    replay_mode: false
+    enable_auto_commit: false
+    commit_interval_seconds: 5.0
+    topic_per_tenant: true
+    topic_template: telemetry.events.{tenant_id}
+    partitions_per_topic: 3
+    auto_create_topics: true
+
+validation:
+  schema_path: config/schemas/sensor_event.json
+  dedup_window_seconds: 5
+  drop_invalid: true
+
+processing:
+  window_size_seconds: 10
+  slide_interval_seconds: 2
+
+storage:
+  backend: timescale
+  timescale:
+    dsn: postgresql://telemetry:telemetry@timescaledb:5432/telemetry
+    batch_size: 100
+    flush_interval_seconds: 1.0
+    retention_days: 90
+    compression_after_days: 7
+    enable_retention_policy: true
+
+anomaly:
+  enabled: true
+  alert_threshold: 0.65
+  ensemble_weights:
+    statistical: 0.25
+    isolation_forest: 0.30
+    rule_based: 0.15
+    autoencoder: 0.30
+  autoencoder:
+    enabled: true
+    backend: numpy
+    hidden_dim: 8
+    min_samples: 20
+
+tenancy:
+  enabled: true
+  default_tenant: default
+  require_tenant_header: false
+  tenant_api_keys:
+    acme: acme-secret-key
+    globex: globex-secret-key
+
+simulator:
+  devices: 10
+  interval_ms: 100
+  anomaly_rate: 0.03
+
+viz:
+  enabled: true
+  host: 0.0.0.0
+  port: 8080
+  metrics_refresh_seconds: 1.0
+  security:
+    api_key: ""
+    rate_limit_enabled: true
+    rate_limit_rpm: 600
+
+logging:
+  format: json
+  level: info
+
+opentelemetry:
+  enabled: false
+  endpoint: http://otel-collector:4318
+  service_name: telemetry-pipeline
+
+shutdown:
+  drain_timeout_seconds: 20.0
+
+alerting:
+  enabled: false
+
+prometheus:
+  enabled: true
+  namespace: telemetry
+  per_tenant_labels: true

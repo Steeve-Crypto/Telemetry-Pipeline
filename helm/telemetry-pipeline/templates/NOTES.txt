@@ -1,0 +1,27 @@
+Telemetry Pipeline deployed with Helm release {{ .Release.Name }}.
+
+Namespace: {{ include "telemetry-pipeline.namespace" . }}
+
+{{- if .Values.pipeline.enabled }}
+
+API (in-cluster):
+  http://{{ include "telemetry-pipeline.pipelineServiceName" . }}.{{ include "telemetry-pipeline.namespace" . }}.svc.cluster.local:{{ .Values.service.port }}/health
+
+{{- if .Values.ingress.enabled }}
+
+Ingress:
+  http://{{ .Values.ingress.host }}/
+{{- end }}
+
+Port-forward:
+  kubectl -n {{ include "telemetry-pipeline.namespace" . }} port-forward svc/{{ include "telemetry-pipeline.pipelineServiceName" . }} 8080:{{ .Values.service.port }}
+  curl http://localhost:8080/health
+{{- end }}
+
+{{- if .Values.victoriametrics.enabled }}
+
+VictoriaMetrics:
+  kubectl -n {{ include "telemetry-pipeline.namespace" . }} port-forward svc/victoriametrics 8428:8428
+{{- end }}
+
+GitOps: apply gitops/argocd/application.yaml to sync via ArgoCD.

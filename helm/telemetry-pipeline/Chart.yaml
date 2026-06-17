@@ -1,0 +1,17 @@
+apiVersion: v2
+name: telemetry-pipeline
+description: Modular real-time telemetry pipeline with multi-tenant Kafka, TimescaleDB, and VictoriaMetrics
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - telemetry
+  - iot
+  - kafka
+  - timescaledb
+  - victoriametrics
+maintainers:
+  - name: telemetry-pipeline
+home: https://github.com/your-org/telemetry-pipeline
+sources:
+  - https://github.com/your-org/telemetry-pipeline

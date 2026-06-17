@@ -1,0 +1,42 @@
+{{- if .Values.simulator.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "telemetry-pipeline.fullname" . }}-simulator
+  namespace: {{ include "telemetry-pipeline.namespace" . }}
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+    app: telemetry-simulator
+spec:
+  replicas: {{ .Values.simulator.replicas }}
+  selector:
+    matchLabels:
+      app: telemetry-simulator
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: telemetry-simulator
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: simulator
+          image: "{{ .Values.images.simulator.repository }}:{{ .Values.images.simulator.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+          command:
+            - sh
+            - -c
+            - |
+              sleep {{ .Values.simulator.startupSleepSeconds }}
+              telemetry-simulator --config /app/config/pipeline.k8s.yaml --sensors /app/config/sensors.yaml --duration {{ .Values.simulator.durationSeconds }}
+          resources:
+            {{- toYaml .Values.simulator.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "telemetry-pipeline.configMapName" . }}
+{{- end }}

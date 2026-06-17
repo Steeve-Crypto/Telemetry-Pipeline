@@ -11,6 +11,7 @@
 | Phase 1–3 | CI, Grafana, Slack, auth, ML eval, ClickHouse profile |
 | Phase 4 (infra) | K8s, Helm, ArgoCD, multi-tenant, Kafka topics, VictoriaMetrics, NetPol/PSS, load test |
 | Frontend Phases 1–3 | Next.js Signal UI — overview, devices, anomalies, tenant switcher |
+| Phase 5 | Grafana Signal theme, dashboard copy/layout, `/ops` embed |
 
 ---
 
@@ -20,11 +21,11 @@
 
 | # | Task | Commit title |
 |---|------|--------------|
-| 5.1 | Grafana custom theme JSON (warm bg, teal series, terracotta alerts) | `feat(grafana): signal theme` |
-| 5.2 | Re-layout Overview dashboard (stat strip → hero chart → drill-down) | `feat(grafana): overview layout` |
-| 5.3 | Rename panels to narrative titles (“Signal volume”, “Ingest latency”) | `feat(grafana): panel copy` |
-| 5.4 | Align tenant + ML dashboards to same theme | `feat(grafana): tenant ml theme` |
-| 5.5 | Next.js `/ops` route with embedded Grafana iframe | `feat(frontend): ops embed` |
+| 5.1 | Grafana custom theme JSON (warm bg, teal series, terracotta alerts) | `feat(grafana): signal theme` ✅ |
+| 5.2 | Re-layout Overview dashboard (stat strip → hero chart → drill-down) | `feat(grafana): overview layout` ✅ |
+| 5.3 | Rename panels to narrative titles (“Signal volume”, “Ingest latency”) | `feat(grafana): panel copy` ✅ |
+| 5.4 | Align tenant + ML dashboards to same theme | `feat(grafana): tenant ml theme` ✅ |
+| 5.5 | Next.js `/ops` route with embedded Grafana iframe | `feat(frontend): ops embed` ✅ |
 
 **Exit:** Grafana at `:3000` and Signal at `:3001` feel like one product.
 
@@ -102,7 +103,7 @@ Phase 5 (Grafana)  →  Phase 6 (polish)  →  Phase 7 (real-time)
                       Phase 8 (prod)  →  Phase 9 (optional)
 ```
 
-**Next up:** Phase 5.1 — `feat(grafana): signal theme`
+**Next up:** Phase 6.1 — `feat(frontend): theme toggle`
 
 ---
 

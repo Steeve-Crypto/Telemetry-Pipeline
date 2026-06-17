@@ -148,6 +148,26 @@ services:
       TENANT_API_KEYS: '{"acme":"acme-docker-key","globex":"globex-docker-key","default":""}'
     restart: unless-stopped
 
+  # Legacy Streamlit UI — not started by default; use: docker compose --profile streamlit up
+  streamlit:
+    profiles: ["streamlit"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    depends_on:
+      pipeline:
+        condition: service_healthy
+    ports:
+      - "8501:8501"
+    environment:
+      TELEMETRY_API_URL: http://pipeline:8080
+    command: >
+      streamlit run src/telemetry/viz/streamlit_app.py
+      --server.port=8501
+      --server.address=0.0.0.0
+      --browser.gatherUsageStats=false
+    restart: unless-stopped
+
   grafana:
     build:
       context: ./docker/grafana

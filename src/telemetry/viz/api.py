@@ -7,6 +7,7 @@ from aiohttp import web
 from telemetry.config import TenancyConfig, VizConfig
 from telemetry.prometheus import PrometheusExporter
 from telemetry.storage.timescale import StorageBackend
+from telemetry.ingestion.kafka_topics import known_tenant_ids
 from telemetry.viz.middleware import TENANT_ID_KEY, build_security_middleware
 
 
@@ -26,8 +27,11 @@ class VizAPI:
             build_security_middleware(viz.security, self._tenancy)
         ])
         self.app.router.add_get("/health", self.health)
+        self.app.router.add_get("/api/config", self.config)
+        self.app.router.add_get("/api/devices", self.devices)
         self.app.router.add_get("/api/events", self.events)
         self.app.router.add_get("/api/anomalies", self.anomalies)
+        self.app.router.add_get("/api/window-stats", self.window_stats)
         self.app.router.add_get("/api/metrics", self.metrics)
         self.app.router.add_get("/metrics", self.prometheus_metrics)
         self._pipeline_metrics: dict = {}
@@ -44,19 +48,59 @@ class VizAPI:
             return None
         return request.get(TENANT_ID_KEY) or self._tenancy.default_tenant
 
+    async def config(self, _request: web.Request) -> web.Response:
+        tenants = known_tenant_ids(self._tenancy) if self._tenancy.enabled else []
+        if self._tenancy.enabled and self._tenancy.default_tenant not in tenants:
+            tenants = [self._tenancy.default_tenant, *tenants]
+        return web.json_response(
+            {
+                "tenancy": {
+                    "enabled": self._tenancy.enabled,
+                    "default_tenant": self._tenancy.default_tenant,
+                    "tenants": tenants,
+                }
+            }
+        )
+
+    async def devices(self, request: web.Request) -> web.Response:
+        limit = min(int(request.query.get("limit", "200")), 500)
+        devices = await self._storage.list_devices(
+            tenant_id=self._tenant_filter(request),
+            limit=limit,
+        )
+        return web.json_response([d.model_dump(mode="json") for d in devices])
+
     async def events(self, request: web.Request) -> web.Response:
         limit = min(int(request.query.get("limit", "100")), 1000)
-        events = await self._storage.recent_events(limit, tenant_id=self._tenant_filter(request))
+        device_id = request.query.get("device_id")
+        events = await self._storage.recent_events(
+            limit,
+            tenant_id=self._tenant_filter(request),
+            device_id=device_id,
+        )
         payload = [e.model_dump(mode="json") for e in events]
         return web.json_response(payload)
 
     async def anomalies(self, request: web.Request) -> web.Response:
         limit = min(int(request.query.get("limit", "50")), 500)
+        device_id = request.query.get("device_id")
         anomalies = await self._storage.recent_anomalies(
-            limit, tenant_id=self._tenant_filter(request)
+            limit,
+            tenant_id=self._tenant_filter(request),
+            device_id=device_id,
         )
         payload = [a.model_dump(mode="json") for a in anomalies]
         return web.json_response(payload)
+
+    async def window_stats(self, request: web.Request) -> web.Response:
+        limit = min(int(request.query.get("limit", "100")), 500)
+        device_id = request.query.get("device_id")
+        stats = await self._storage.recent_window_stats(
+            limit,
+            tenant_id=self._tenant_filter(request),
+            device_id=device_id,
+        )
+        return web.json_response([s.model_dump(mode="json") for s in stats])
 
     async def metrics(self, _request: web.Request) -> web.Response:
         return web.json_response(self._pipeline_metrics)

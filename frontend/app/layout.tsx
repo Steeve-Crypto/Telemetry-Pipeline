@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, IBM_Plex_Mono, Inter } from "next/font/google";
 
 import { AppShell } from "@/components/shell/app-shell";
+import { TenantProvider } from "@/contexts/tenant-context";
 
 import "./globals.css";
 
@@ -36,7 +37,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${inter.variable} ${fraunces.variable} ${plexMono.variable}`}
     >
       <body>
-        <AppShell>{children}</AppShell>
+        <TenantProvider>
+          <AppShell>{children}</AppShell>
+        </TenantProvider>
       </body>
     </html>
   );

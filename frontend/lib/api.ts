@@ -1,4 +1,12 @@
-import type { AnomalyScore, PipelineMetrics, TelemetryEvent } from "./types";
+import { clientFetch } from "./client-fetch";
+import type {
+  AnomalyScore,
+  AppConfig,
+  DeviceSummary,
+  PipelineMetrics,
+  TelemetryEvent,
+  WindowStat,
+} from "./types";
 
 const DEFAULT_METRICS: PipelineMetrics = {
   events_ingested: 0,
@@ -20,18 +28,10 @@ export function getTelemetryApiUrl(): string {
 }
 
 export async function fetchPipelineMetrics(
-  apiKey?: string,
+  tenantId?: string | null,
 ): Promise<{ metrics: PipelineMetrics; ok: boolean }> {
   try {
-    const headers: HeadersInit = {};
-    if (apiKey) {
-      headers["X-API-Key"] = apiKey;
-    }
-
-    const res = await fetch("/api/metrics", {
-      headers,
-      cache: "no-store",
-    });
+    const res = await clientFetch("/api/metrics", tenantId);
 
     if (!res.ok) {
       return { metrics: DEFAULT_METRICS, ok: false };
@@ -44,30 +44,66 @@ export async function fetchPipelineMetrics(
   }
 }
 
-async function fetchJson<T>(path: string, apiKey?: string): Promise<{ data: T; ok: boolean }> {
+async function fetchJson<T>(
+  path: string,
+  tenantId?: string | null,
+  fallback?: T,
+): Promise<{ data: T; ok: boolean }> {
   try {
-    const headers: HeadersInit = {};
-    if (apiKey) {
-      headers["X-API-Key"] = apiKey;
-    }
-
-    const res = await fetch(path, { headers, cache: "no-store" });
+    const res = await clientFetch(path, tenantId);
     if (!res.ok) {
-      return { data: [] as T, ok: false };
+      return { data: (fallback ?? ([] as T)) as T, ok: false };
     }
 
     return { data: (await res.json()) as T, ok: true };
   } catch {
-    return { data: [] as T, ok: false };
+    return { data: (fallback ?? ([] as T)) as T, ok: false };
   }
 }
 
-export async function fetchRecentEvents(limit = 200, apiKey?: string) {
-  return fetchJson<TelemetryEvent[]>(`/api/events?limit=${limit}`, apiKey);
+export async function fetchAppConfig(tenantId?: string | null) {
+  return fetchJson<AppConfig>("/api/config", tenantId, {
+    tenancy: { enabled: false, default_tenant: "default", tenants: [] },
+  });
 }
 
-export async function fetchRecentAnomalies(limit = 50, apiKey?: string) {
-  return fetchJson<AnomalyScore[]>(`/api/anomalies?limit=${limit}`, apiKey);
+export async function fetchDevices(tenantId?: string | null) {
+  return fetchJson<DeviceSummary[]>("/api/devices?limit=200", tenantId);
+}
+
+export async function fetchRecentEvents(
+  limit = 200,
+  tenantId?: string | null,
+  deviceId?: string,
+) {
+  const deviceQuery = deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : "";
+  return fetchJson<TelemetryEvent[]>(
+    `/api/events?limit=${limit}${deviceQuery}`,
+    tenantId,
+  );
+}
+
+export async function fetchRecentAnomalies(
+  limit = 50,
+  tenantId?: string | null,
+  deviceId?: string,
+) {
+  const deviceQuery = deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : "";
+  return fetchJson<AnomalyScore[]>(
+    `/api/anomalies?limit=${limit}${deviceQuery}`,
+    tenantId,
+  );
+}
+
+export async function fetchWindowStats(
+  deviceId: string,
+  tenantId?: string | null,
+  limit = 100,
+) {
+  return fetchJson<WindowStat[]>(
+    `/api/window-stats?device_id=${encodeURIComponent(deviceId)}&limit=${limit}`,
+    tenantId,
+  );
 }
 
 export interface DashboardSnapshot {
@@ -77,11 +113,13 @@ export interface DashboardSnapshot {
   ok: boolean;
 }
 
-export async function fetchDashboardSnapshot(apiKey?: string): Promise<DashboardSnapshot> {
+export async function fetchDashboardSnapshot(
+  tenantId?: string | null,
+): Promise<DashboardSnapshot> {
   const [metricsRes, eventsRes, anomaliesRes] = await Promise.all([
-    fetchPipelineMetrics(apiKey),
-    fetchRecentEvents(200, apiKey),
-    fetchRecentAnomalies(50, apiKey),
+    fetchPipelineMetrics(tenantId),
+    fetchRecentEvents(200, tenantId),
+    fetchRecentAnomalies(50, tenantId),
   ]);
 
   const ok = metricsRes.ok || eventsRes.ok || anomaliesRes.ok;

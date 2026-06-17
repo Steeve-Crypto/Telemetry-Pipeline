@@ -5,6 +5,7 @@ import { Play, Radio } from "lucide-react";
 import { LatencyBars } from "@/components/charts/latency-bars";
 import { SensorSeriesChart } from "@/components/charts/sensor-series-chart";
 import { ConnectionStatusBadge } from "@/components/shell/connection-status";
+import { TenantSwitcher } from "@/components/shell/tenant-switcher";
 import { AnomalyFeed } from "@/components/overview/anomaly-feed";
 import { HeroMetrics } from "@/components/overview/hero-metrics";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -36,7 +37,8 @@ export function MetricsOverview() {
           title="Overview"
           description="Ingest → understand → act. Live sensor signal with anomaly context."
         >
-          <ConnectionStatusBadge status={status} />
+          <TenantSwitcher />
+        <ConnectionStatusBadge status={status} />
           {lastUpdated && (
             <time className="text-xs text-muted" dateTime={lastUpdated.toISOString()}>
               Updated {lastUpdated.toLocaleTimeString()}

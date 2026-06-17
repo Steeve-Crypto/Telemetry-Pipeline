@@ -63,6 +63,15 @@ class EnrichedEvent(SensorEvent):
         return self
 
 
+class DeviceSummary(BaseModel):
+    device_id: str
+    sensor_type: str
+    tenant_id: str = "default"
+    event_count: int = 0
+    last_seen: datetime
+    last_metrics: dict[str, float] = Field(default_factory=dict)
+
+
 class WindowStats(BaseModel):
     tenant_id: str = "default"
     device_id: str

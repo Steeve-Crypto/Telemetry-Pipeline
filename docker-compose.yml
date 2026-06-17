@@ -145,6 +145,7 @@ services:
       - "3001:3001"
     environment:
       TELEMETRY_API_URL: http://pipeline:8080
+      TENANT_API_KEYS: '{"acme":"acme-docker-key","globex":"globex-docker-key","default":""}'
     restart: unless-stopped
 
   grafana:

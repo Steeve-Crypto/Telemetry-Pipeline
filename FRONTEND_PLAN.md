@@ -125,12 +125,13 @@ Replace Streamlit as the **customer-facing** UI. Keep Grafana for SRE/ML ops.
 
 **Outcome**: Visual dashboard replaces Streamlit for day-to-day monitoring.
 
-### Phase 3 — Device & tenant depth (1 week)
+### Phase 3 — Device & tenant depth (1 week) ✅
 
-- [ ] Device list with search, sensor-type filters, health dot (last event age)
-- [ ] Device detail page: metric cards, 24h chart, recent anomalies, enriched tags as pills
-- [ ] Tenant switcher in header when `tenancy.enabled` (maps to `X-API-Key`)
-- [ ] API extensions: `GET /api/devices`, `GET /api/events?device_id=`, `GET /api/window-stats`
+- [x] Device list with search, sensor-type filter chips, health dots
+- [x] Device detail page: metric cards, sensor chart, anomaly feed, tag pills
+- [x] Anomalies page: severity donut, method breakdown bar chart, selectable timeline
+- [x] Tenant switcher (server-side API key mapping via `TENANT_API_KEYS`)
+- [x] API: `GET /api/devices`, `GET /api/config`, `GET /api/events?device_id=`, `GET /api/window-stats`
 
 **Outcome**: Multi-tenant SaaS use case is visible in the UI, not only in config.
 

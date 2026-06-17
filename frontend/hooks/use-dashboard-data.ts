@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { useTenant } from "@/contexts/tenant-context";
 import { fetchDashboardSnapshot } from "@/lib/api";
 import { appendSparkline, EMPTY_SPARKLINE, eventsToChartPoints } from "@/lib/transforms";
 import type {
@@ -26,6 +27,7 @@ export interface DashboardData {
 }
 
 export function useDashboardData(): DashboardData {
+  const { tenantId } = useTenant();
   const [metrics, setMetrics] = useState<PipelineMetrics | null>(null);
   const [events, setEvents] = useState<TelemetryEvent[]>([]);
   const [anomalies, setAnomalies] = useState<AnomalyScore[]>([]);
@@ -36,7 +38,7 @@ export function useDashboardData(): DashboardData {
   const refresh = useCallback(async () => {
     setStatus((prev) => (prev === "offline" ? "connecting" : prev));
 
-    const snapshot = await fetchDashboardSnapshot();
+    const snapshot = await fetchDashboardSnapshot(tenantId);
 
     setMetrics(snapshot.metrics);
     setEvents(snapshot.events);
@@ -47,7 +49,7 @@ export function useDashboardData(): DashboardData {
     if (snapshot.ok) {
       setLastUpdated(new Date());
     }
-  }, []);
+  }, [tenantId]);
 
   useEffect(() => {
     refresh();

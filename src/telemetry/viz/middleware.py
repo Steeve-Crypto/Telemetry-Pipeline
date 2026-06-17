@@ -42,7 +42,7 @@ def build_security_middleware(
 
     tenant_keys = load_tenant_api_keys(tenancy) if tenancy.enabled else {}
     limiter = RateLimiter(config.rate_limit_rpm) if config.rate_limit_enabled else None
-    public_paths = {"/health", "/metrics"}
+    public_paths = {"/health", "/metrics", "/api/config"}
 
     @web.middleware
     async def security_middleware(request: web.Request, handler: web.Handler) -> web.StreamResponse:

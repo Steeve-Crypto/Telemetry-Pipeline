@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getTelemetryApiUrl } from "@/lib/api";
+import { resolveTenantApiKey } from "@/lib/tenant-server";
 
 export async function proxyToPipeline(
   request: NextRequest,
   path: string,
 ): Promise<NextResponse> {
-  const apiKey = request.headers.get("x-api-key") ?? undefined;
+  const tenantId = request.headers.get("x-tenant-id");
+  const apiKey =
+    request.headers.get("x-api-key") ?? resolveTenantApiKey(tenantId) ?? undefined;
   const base = getTelemetryApiUrl();
   const query = request.nextUrl.search;
 

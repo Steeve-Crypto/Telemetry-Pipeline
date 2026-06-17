@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import structlog
 
 from telemetry.config import MemoryStorageConfig, PipelineYamlConfig, StorageConfig
-from telemetry.models import AnomalyScore, EnrichedEvent, WindowStats
+from telemetry.models import AnomalyScore, DeviceSummary, EnrichedEvent, WindowStats
 
 logger = structlog.get_logger(__name__)
 
@@ -90,10 +90,35 @@ class StorageBackend(ABC):
     async def write_anomaly(self, score: AnomalyScore) -> None: ...
 
     @abstractmethod
-    async def recent_events(self, limit: int = 100, tenant_id: str | None = None) -> list[EnrichedEvent]: ...
+    async def recent_events(
+        self,
+        limit: int = 100,
+        tenant_id: str | None = None,
+        device_id: str | None = None,
+    ) -> list[EnrichedEvent]: ...
 
     @abstractmethod
-    async def recent_anomalies(self, limit: int = 50, tenant_id: str | None = None) -> list[AnomalyScore]: ...
+    async def recent_anomalies(
+        self,
+        limit: int = 50,
+        tenant_id: str | None = None,
+        device_id: str | None = None,
+    ) -> list[AnomalyScore]: ...
+
+    @abstractmethod
+    async def list_devices(
+        self,
+        tenant_id: str | None = None,
+        limit: int = 200,
+    ) -> list[DeviceSummary]: ...
+
+    @abstractmethod
+    async def recent_window_stats(
+        self,
+        limit: int = 100,
+        tenant_id: str | None = None,
+        device_id: str | None = None,
+    ) -> list[WindowStats]: ...
 
 
 class MemoryStorage(StorageBackend):
@@ -136,17 +161,74 @@ class MemoryStorage(StorageBackend):
             return
         self.anomalies.append(score)
 
-    async def recent_events(self, limit: int = 100, tenant_id: str | None = None) -> list[EnrichedEvent]:
+    async def recent_events(
+        self,
+        limit: int = 100,
+        tenant_id: str | None = None,
+        device_id: str | None = None,
+    ) -> list[EnrichedEvent]:
         events = self.events
         if tenant_id:
             events = [e for e in events if e.tenant_id == tenant_id]
+        if device_id:
+            events = [e for e in events if e.device_id == device_id]
         return events[-limit:]
 
-    async def recent_anomalies(self, limit: int = 50, tenant_id: str | None = None) -> list[AnomalyScore]:
+    async def recent_anomalies(
+        self,
+        limit: int = 50,
+        tenant_id: str | None = None,
+        device_id: str | None = None,
+    ) -> list[AnomalyScore]:
         anomalies = self.anomalies
         if tenant_id:
             anomalies = [a for a in anomalies if a.tenant_id == tenant_id]
+        if device_id:
+            anomalies = [a for a in anomalies if a.device_id == device_id]
         return anomalies[-limit:]
+
+    async def list_devices(
+        self,
+        tenant_id: str | None = None,
+        limit: int = 200,
+    ) -> list[DeviceSummary]:
+        events = self.events
+        if tenant_id:
+            events = [e for e in events if e.tenant_id == tenant_id]
+
+        by_device: dict[str, list[EnrichedEvent]] = {}
+        for event in events:
+            by_device.setdefault(event.device_id, []).append(event)
+
+        summaries: list[DeviceSummary] = []
+        for device_id, device_events in by_device.items():
+            latest = max(device_events, key=lambda e: e.timestamp)
+            summaries.append(
+                DeviceSummary(
+                    device_id=device_id,
+                    sensor_type=latest.sensor_type,
+                    tenant_id=latest.tenant_id or "default",
+                    event_count=len(device_events),
+                    last_seen=latest.timestamp,
+                    last_metrics=latest.metrics,
+                )
+            )
+
+        summaries.sort(key=lambda d: d.last_seen, reverse=True)
+        return summaries[:limit]
+
+    async def recent_window_stats(
+        self,
+        limit: int = 100,
+        tenant_id: str | None = None,
+        device_id: str | None = None,
+    ) -> list[WindowStats]:
+        stats = self.window_stats
+        if tenant_id:
+            stats = [s for s in stats if s.tenant_id == tenant_id]
+        if device_id:
+            stats = [s for s in stats if s.device_id == device_id]
+        return stats[-limit:]
 
 
 class TimescaleStorage(StorageBackend):
@@ -301,66 +383,82 @@ class TimescaleStorage(StorageBackend):
                 score.message,
             )
 
-    async def recent_events(self, limit: int = 100, tenant_id: str | None = None) -> list[EnrichedEvent]:
+    async def recent_events(
+        self,
+        limit: int = 100,
+        tenant_id: str | None = None,
+        device_id: str | None = None,
+    ) -> list[EnrichedEvent]:
         if self._pool is None:
             return []
+        clauses: list[str] = []
+        args: list[object] = []
+        idx = 1
+
+        if tenant_id:
+            clauses.append(f"tenant_id = ${idx}")
+            args.append(tenant_id)
+            idx += 1
+        if device_id:
+            clauses.append(f"device_id = ${idx}")
+            args.append(device_id)
+            idx += 1
+
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        args.append(limit)
+
         async with self._pool.acquire() as conn:
-            if tenant_id:
-                rows = await conn.fetch(
-                    """
-                    SELECT event_id, tenant_id, device_id, sensor_type, timestamp, ingested_at,
-                           ingest_latency_ms, metrics, tags, is_anomaly, anomaly_label
-                    FROM telemetry_events
-                    WHERE tenant_id = $1
-                    ORDER BY timestamp DESC
-                    LIMIT $2
-                    """,
-                    tenant_id,
-                    limit,
-                )
-            else:
-                rows = await conn.fetch(
-                    """
-                    SELECT event_id, tenant_id, device_id, sensor_type, timestamp, ingested_at,
-                           ingest_latency_ms, metrics, tags, is_anomaly, anomaly_label
-                    FROM telemetry_events
-                    ORDER BY timestamp DESC
-                    LIMIT $1
-                    """,
-                    limit,
-                )
+            rows = await conn.fetch(
+                f"""
+                SELECT event_id, tenant_id, device_id, sensor_type, timestamp, ingested_at,
+                       ingest_latency_ms, metrics, tags, is_anomaly, anomaly_label
+                FROM telemetry_events
+                {where}
+                ORDER BY timestamp DESC
+                LIMIT ${idx}
+                """,
+                *args,
+            )
         return [_row_to_event(r) for r in rows]
 
-    async def recent_anomalies(self, limit: int = 50, tenant_id: str | None = None) -> list[AnomalyScore]:
+    async def recent_anomalies(
+        self,
+        limit: int = 50,
+        tenant_id: str | None = None,
+        device_id: str | None = None,
+    ) -> list[AnomalyScore]:
         if self._pool is None:
             return []
         from telemetry.models import Severity
 
+        clauses: list[str] = []
+        args: list[object] = []
+        idx = 1
+
+        if tenant_id:
+            clauses.append(f"tenant_id = ${idx}")
+            args.append(tenant_id)
+            idx += 1
+        if device_id:
+            clauses.append(f"device_id = ${idx}")
+            args.append(device_id)
+            idx += 1
+
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        args.append(limit)
+
         async with self._pool.acquire() as conn:
-            if tenant_id:
-                rows = await conn.fetch(
-                    """
-                    SELECT tenant_id, device_id, sensor_type, timestamp, score, is_anomaly,
-                           severity, methods, drift_detected, message
-                    FROM anomaly_scores
-                    WHERE tenant_id = $1
-                    ORDER BY timestamp DESC
-                    LIMIT $2
-                    """,
-                    tenant_id,
-                    limit,
-                )
-            else:
-                rows = await conn.fetch(
-                    """
-                    SELECT tenant_id, device_id, sensor_type, timestamp, score, is_anomaly,
-                           severity, methods, drift_detected, message
-                    FROM anomaly_scores
-                    ORDER BY timestamp DESC
-                    LIMIT $1
-                    """,
-                    limit,
-                )
+            rows = await conn.fetch(
+                f"""
+                SELECT tenant_id, device_id, sensor_type, timestamp, score, is_anomaly,
+                       severity, methods, drift_detected, message
+                FROM anomaly_scores
+                {where}
+                ORDER BY timestamp DESC
+                LIMIT ${idx}
+                """,
+                *args,
+            )
         return [
             AnomalyScore(
                 tenant_id=r.get("tenant_id", "default"),
@@ -373,6 +471,121 @@ class TimescaleStorage(StorageBackend):
                 methods=__import__("json").loads(r["methods"] or "{}"),
                 drift_detected=r["drift_detected"],
                 message=r["message"] or "",
+            )
+            for r in rows
+        ]
+
+    async def list_devices(
+        self,
+        tenant_id: str | None = None,
+        limit: int = 200,
+    ) -> list[DeviceSummary]:
+        if self._pool is None:
+            return []
+
+        async with self._pool.acquire() as conn:
+            if tenant_id:
+                rows = await conn.fetch(
+                    """
+                    SELECT device_id,
+                           max(sensor_type) AS sensor_type,
+                           max(tenant_id) AS tenant_id,
+                           count(*)::int AS event_count,
+                           max(timestamp) AS last_seen,
+                           (array_agg(metrics ORDER BY timestamp DESC))[1] AS last_metrics
+                    FROM telemetry_events
+                    WHERE tenant_id = $1
+                    GROUP BY device_id
+                    ORDER BY last_seen DESC
+                    LIMIT $2
+                    """,
+                    tenant_id,
+                    limit,
+                )
+            else:
+                rows = await conn.fetch(
+                    """
+                    SELECT device_id,
+                           max(sensor_type) AS sensor_type,
+                           max(tenant_id) AS tenant_id,
+                           count(*)::int AS event_count,
+                           max(timestamp) AS last_seen,
+                           (array_agg(metrics ORDER BY timestamp DESC))[1] AS last_metrics
+                    FROM telemetry_events
+                    GROUP BY device_id
+                    ORDER BY last_seen DESC
+                    LIMIT $1
+                    """,
+                    limit,
+                )
+
+        import json
+
+        return [
+            DeviceSummary(
+                device_id=r["device_id"],
+                sensor_type=r["sensor_type"],
+                tenant_id=r.get("tenant_id", "default"),
+                event_count=r["event_count"],
+                last_seen=r["last_seen"],
+                last_metrics=json.loads(r["last_metrics"])
+                if isinstance(r["last_metrics"], str)
+                else dict(r["last_metrics"] or {}),
+            )
+            for r in rows
+        ]
+
+    async def recent_window_stats(
+        self,
+        limit: int = 100,
+        tenant_id: str | None = None,
+        device_id: str | None = None,
+    ) -> list[WindowStats]:
+        if self._pool is None:
+            return []
+
+        clauses: list[str] = []
+        args: list[object] = []
+        idx = 1
+
+        if tenant_id:
+            clauses.append(f"tenant_id = ${idx}")
+            args.append(tenant_id)
+            idx += 1
+        if device_id:
+            clauses.append(f"device_id = ${idx}")
+            args.append(device_id)
+            idx += 1
+
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        args.append(limit)
+
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"""
+                SELECT tenant_id, device_id, sensor_type, window_start, window_end,
+                       field, count, mean, min, max, std
+                FROM window_stats
+                {where}
+                ORDER BY window_end DESC
+                LIMIT ${idx}
+                """,
+                *args,
+            )
+
+        return [
+            WindowStats(
+                tenant_id=r.get("tenant_id", "default"),
+                device_id=r["device_id"],
+                sensor_type=r["sensor_type"],
+                window_start=r["window_start"],
+                window_end=r["window_end"],
+                field=r["field"],
+                count=r["count"],
+                mean=r["mean"],
+                min=r["min"],
+                max=r["max"],
+                std=r["std"],
             )
             for r in rows
         ]

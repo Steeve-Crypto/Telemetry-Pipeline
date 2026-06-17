@@ -4,6 +4,7 @@ export const CHART_COLORS = {
   temperature: "#2a6b5e",
   pressure: "#4a7c8c",
   vibration: "#c26b4a",
+  alert: "#c26b4a",
   grid: "#e8e4de",
   axis: "#6b6560",
   tooltipBg: "#ffffff",

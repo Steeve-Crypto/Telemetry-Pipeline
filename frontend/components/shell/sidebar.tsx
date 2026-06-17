@@ -7,9 +7,9 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const nav = [
-  { href: "/", label: "Overview", icon: Activity, enabled: true },
-  { href: "/devices", label: "Devices", icon: Cpu, enabled: false },
-  { href: "/anomalies", label: "Anomalies", icon: AlertTriangle, enabled: false },
+  { href: "/", label: "Overview", icon: Activity },
+  { href: "/devices", label: "Devices", icon: Cpu },
+  { href: "/anomalies", label: "Anomalies", icon: AlertTriangle },
 ];
 
 export function Sidebar() {
@@ -31,21 +31,10 @@ export function Sidebar() {
 
       <nav className="mt-8 flex flex-1 flex-col gap-1" aria-label="Main">
         {nav.map((item) => {
-          const active = pathname === item.href;
+          const active =
+            pathname === item.href ||
+            (item.href !== "/" && pathname.startsWith(item.href));
           const Icon = item.icon;
-
-          if (!item.enabled) {
-            return (
-              <span
-                key={item.href}
-                className="flex cursor-not-allowed items-center gap-3 rounded-input px-3 py-2 text-sm text-muted/50"
-                title="Coming soon"
-              >
-                <Icon className="h-4 w-4" strokeWidth={1.5} />
-                {item.label}
-              </span>
-            );
-          }
 
           return (
             <Link

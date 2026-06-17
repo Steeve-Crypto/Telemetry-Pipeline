@@ -184,10 +184,20 @@ class ClickHouseStorage(StorageBackend):
             ],
         )
 
-    async def recent_events(self, limit: int = 100, tenant_id: str | None = None) -> list[EnrichedEvent]:
+    async def recent_events(
+        self,
+        limit: int = 100,
+        tenant_id: str | None = None,
+        device_id: str | None = None,
+    ) -> list[EnrichedEvent]:
         if self._client is None:
             return []
-        tenant_filter = f"WHERE tenant_id = '{tenant_id}'" if tenant_id else ""
+        filters: list[str] = []
+        if tenant_id:
+            filters.append(f"tenant_id = '{tenant_id}'")
+        if device_id:
+            filters.append(f"device_id = '{device_id}'")
+        tenant_filter = f"WHERE {' AND '.join(filters)}" if filters else ""
         query = f"""
             SELECT event_id, tenant_id, device_id, sensor_type, timestamp, ingested_at,
                    ingest_latency_ms, metrics, tags, is_anomaly, anomaly_label
@@ -218,12 +228,22 @@ class ClickHouseStorage(StorageBackend):
             )
         return events
 
-    async def recent_anomalies(self, limit: int = 50, tenant_id: str | None = None) -> list[AnomalyScore]:
+    async def recent_anomalies(
+        self,
+        limit: int = 50,
+        tenant_id: str | None = None,
+        device_id: str | None = None,
+    ) -> list[AnomalyScore]:
         if self._client is None:
             return []
         from telemetry.models import Severity
 
-        tenant_filter = f"WHERE tenant_id = '{tenant_id}'" if tenant_id else ""
+        filters: list[str] = []
+        if tenant_id:
+            filters.append(f"tenant_id = '{tenant_id}'")
+        if device_id:
+            filters.append(f"device_id = '{device_id}'")
+        tenant_filter = f"WHERE {' AND '.join(filters)}" if filters else ""
         query = f"""
             SELECT tenant_id, device_id, sensor_type, timestamp, score, is_anomaly,
                    severity, methods, drift_detected, message
@@ -249,6 +269,42 @@ class ClickHouseStorage(StorageBackend):
             )
             for r in resp.json().get("data", [])
         ]
+
+    async def list_devices(
+        self,
+        tenant_id: str | None = None,
+        limit: int = 200,
+    ) -> list:
+        from telemetry.models import DeviceSummary
+
+        events = await self.recent_events(limit=5000, tenant_id=tenant_id)
+        by_device: dict[str, list] = {}
+        for event in events:
+            by_device.setdefault(event.device_id, []).append(event)
+
+        summaries = []
+        for device_id, device_events in by_device.items():
+            latest = max(device_events, key=lambda e: e.timestamp)
+            summaries.append(
+                DeviceSummary(
+                    device_id=device_id,
+                    sensor_type=latest.sensor_type,
+                    tenant_id=latest.tenant_id or "default",
+                    event_count=len(device_events),
+                    last_seen=latest.timestamp,
+                    last_metrics=latest.metrics,
+                )
+            )
+        summaries.sort(key=lambda d: d.last_seen, reverse=True)
+        return summaries[:limit]
+
+    async def recent_window_stats(
+        self,
+        limit: int = 100,
+        tenant_id: str | None = None,
+        device_id: str | None = None,
+    ) -> list:
+        return []
 
 
 def _fmt_ts(dt: datetime) -> str:

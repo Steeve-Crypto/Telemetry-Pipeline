@@ -10,7 +10,7 @@ from aiohttp import web
 
 from telemetry.config import ApiSecurityConfig, TenancyConfig
 
-TENANT_ID_KEY = web.AppKey("tenant_id", str)
+TENANT_ID_KEY = web.RequestKey("tenant_id", str)
 from telemetry.tenancy import load_tenant_api_keys, resolve_request_tenant, tenant_for_api_key
 
 

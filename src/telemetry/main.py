@@ -11,6 +11,7 @@ import structlog
 
 from telemetry.config import load_pipeline_config, load_sensors_config
 from telemetry.pipeline import TelemetryPipeline
+from telemetry.validation.config_validator import ConfigValidationError, validate_startup
 
 structlog.configure(
     processors=[
@@ -22,9 +23,10 @@ structlog.configure(
 logger = structlog.get_logger(__name__)
 
 
-async def run_pipeline(config_path: str, sensors_path: str) -> None:
+async def run_pipeline(config_path: str, sensors_path: str, strict: bool = False) -> None:
     pipeline_config = load_pipeline_config(config_path)
     sensors_config = load_sensors_config(sensors_path)
+    await validate_startup(pipeline_config, sensors_config, strict_connectivity=strict)
     pipeline = TelemetryPipeline(pipeline_config, sensors_config)
 
     loop = asyncio.get_running_loop()
@@ -78,6 +80,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Telemetry processing pipeline")
     parser.add_argument("--config", default="config/pipeline.yaml")
     parser.add_argument("--sensors", default="config/sensors.yaml")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail startup if TimescaleDB is unreachable",
+    )
     args = parser.parse_args()
 
     try:
@@ -88,7 +95,11 @@ def main() -> None:
         pass
 
     try:
-        asyncio.run(run_pipeline(args.config, args.sensors))
+        asyncio.run(run_pipeline(args.config, args.sensors, strict=args.strict))
+    except ConfigValidationError as exc:
+        for err in exc.errors:
+            logger.error("config_validation_failed", error=err)
+        sys.exit(1)
     except KeyboardInterrupt:
         sys.exit(0)
 

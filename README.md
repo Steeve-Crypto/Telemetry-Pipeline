@@ -212,6 +212,20 @@ pytest tests/test_load.py -v      # throughput benchmark
 pytest tests/test_latency.py -v   # latency budget check
 ```
 
+### Config validation
+
+The pipeline validates configuration at startup (before connecting to brokers/DB):
+
+- Ensemble weights sum to ~1.0
+- JSON schema file exists and matches `sensors.yaml` types
+- Window/slide interval consistency
+- Alerting enabled → webhook URL required
+- Optional `--strict` flag fails if TimescaleDB is unreachable
+
+```bash
+telemetry-pipeline --config config/pipeline.yaml --strict
+```
+
 ### CI (GitHub Actions)
 
 On every push/PR to `main`, CI runs:

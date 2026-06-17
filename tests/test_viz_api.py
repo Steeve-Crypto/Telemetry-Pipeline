@@ -34,6 +34,20 @@ async def test_health_endpoint(viz_client):
 
 
 @pytest.mark.asyncio
+async def test_stream_endpoint(viz_client):
+    resp = await viz_client.get("/api/stream?interval=0.5")
+    assert resp.status == 200
+    assert "text/event-stream" in resp.headers["Content-Type"]
+
+    line = await resp.content.readline()
+    assert line.startswith(b"data: ")
+    payload = await resp.content.readany()
+    await resp.release()
+
+    assert line or payload
+
+
+@pytest.mark.asyncio
 async def test_metrics_api_endpoint(viz_client):
     resp = await viz_client.get("/api/metrics")
     assert resp.status == 200

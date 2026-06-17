@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
+
 from aiohttp import web
 
 from telemetry.config import TenancyConfig, VizConfig
@@ -33,6 +36,7 @@ class VizAPI:
         self.app.router.add_get("/api/anomalies", self.anomalies)
         self.app.router.add_get("/api/window-stats", self.window_stats)
         self.app.router.add_get("/api/metrics", self.metrics)
+        self.app.router.add_get("/api/stream", self.stream)
         self.app.router.add_get("/metrics", self.prometheus_metrics)
         self._pipeline_metrics: dict = {}
         self._runner: web.AppRunner | None = None
@@ -104,6 +108,54 @@ class VizAPI:
 
     async def metrics(self, _request: web.Request) -> web.Response:
         return web.json_response(self._pipeline_metrics)
+
+    async def _dashboard_snapshot(self, request: web.Request) -> dict:
+        tenant_id = self._tenant_filter(request)
+        events = await self._storage.recent_events(
+            200,
+            tenant_id=tenant_id,
+        )
+        anomalies = await self._storage.recent_anomalies(
+            50,
+            tenant_id=tenant_id,
+        )
+        return {
+            "metrics": self._pipeline_metrics,
+            "events": [event.model_dump(mode="json") for event in events],
+            "anomalies": [anomaly.model_dump(mode="json") for anomaly in anomalies],
+        }
+
+    async def stream(self, request: web.Request) -> web.StreamResponse:
+        interval = max(
+            float(request.query.get("interval", "1.5")),
+            0.5,
+        )
+        response = web.StreamResponse(
+            status=200,
+            headers={
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            },
+        )
+        await response.prepare(request)
+
+        try:
+            while True:
+                if request.transport is not None and request.transport.is_closing():
+                    break
+
+                payload = json.dumps(await self._dashboard_snapshot(request))
+                await response.write(f"data: {payload}\n\n".encode())
+
+                if await request.is_disconnected():
+                    break
+
+                await asyncio.sleep(interval)
+        except (asyncio.CancelledError, ConnectionResetError):
+            pass
+
+        return response
 
     async def prometheus_metrics(self, _request: web.Request) -> web.Response:
         if self._prometheus is None:

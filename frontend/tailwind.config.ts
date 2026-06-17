@@ -37,8 +37,8 @@ const config: Config = {
         card: "0 1px 2px rgba(26, 24, 20, 0.04), 0 8px 24px rgba(26, 24, 20, 0.06)",
       },
       animation: {
-        "fade-in": "fadeIn 0.3s ease-out",
-        "count-up": "countUp 0.6s ease-out",
+        "fade-in": "fadeIn 0.3s ease-out motion-reduce:transition-none",
+        "count-up": "countUp 0.6s ease-out motion-reduce:transition-none",
       },
       keyframes: {
         fadeIn: {

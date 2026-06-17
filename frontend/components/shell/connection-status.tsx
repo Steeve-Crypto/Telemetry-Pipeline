@@ -15,8 +15,13 @@ export function ConnectionStatusBadge({ status }: ConnectionStatusBadgeProps) {
   const { label, dot } = config[status];
 
   return (
-    <span className="inline-flex items-center gap-2 rounded-pill border border-border bg-surface px-3 py-1.5 text-xs font-medium text-muted">
-      <span className={cn("h-2 w-2 rounded-full", dot)} aria-hidden />
+    <span
+      className="inline-flex items-center gap-2 rounded-pill border border-border bg-surface px-3 py-1.5 text-xs font-medium text-muted"
+      role="status"
+      aria-live="polite"
+      aria-label={`Connection ${label.toLowerCase()}`}
+    >
+      <span className={cn("h-2 w-2 rounded-full motion-reduce:animate-none", dot)} aria-hidden />
       {label}
     </span>
   );

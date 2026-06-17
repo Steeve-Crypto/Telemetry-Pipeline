@@ -101,15 +101,17 @@ Replace Streamlit as the **customer-facing** UI. Keep Grafana for SRE/ML ops.
 
 ## Improvement plan (phased)
 
-### Phase 1 — Design system + shell (1–2 weeks)
+### Phase 1 — Design system + shell (1–2 weeks) ✅
 
-- [ ] Add `frontend/` with Next.js, Tailwind, shadcn/ui, dark/light toggle
-- [ ] Implement tokens in `globals.css` + `tailwind.config` (Fable palette above)
-- [ ] App shell: slim sidebar (logo wordmark, nav icons + labels), top bar (tenant pill, time range, connection status dot)
-- [ ] Typography scale: display 32/40 for page titles; tabular nums for metrics
-- [ ] Reusable components: `MetricCard`, `SeverityChip`, `DeviceAvatar`, `EmptyState`, `PageHeader`
+- [x] Add `frontend/` with Next.js, Tailwind, Fable tokens
+- [x] Implement tokens in `globals.css` + `tailwind.config`
+- [x] App shell: sidebar (Signal wordmark, nav), connection status badge
+- [x] Typography: Fraunces display + Inter UI + IBM Plex Mono
+- [x] Components: `MetricCard`, `SeverityChip`, `EmptyState`, `PageHeader`
+- [x] Overview wired to `/api/metrics` via Next.js proxy route
+- [ ] Dark/light toggle (Phase 1.1)
 
-**Outcome**: Branded shell with placeholder pages that already feel premium.
+**Outcome**: Branded shell at `:3001` with live metrics from pipeline API.
 
 ### Phase 2 — Live dashboard (1–2 weeks)
 

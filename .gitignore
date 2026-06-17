@@ -14,4 +14,7 @@ htmlcov/
 *.log
 benchmark_report.json
 eval_report.json
+load_test_report.json
+frontend/node_modules/
+frontend/.next/
 models/*.onnx

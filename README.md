@@ -86,8 +86,9 @@ python -m telemetry.main --config config/pipeline.yaml
 # Terminal 2 — simulator
 python -m telemetry.simulator.generator --duration 60
 
-# Terminal 3 — Streamlit dashboard (reads live metrics from :8080)
-streamlit run src/telemetry/viz/streamlit_app.py
+# Terminal 3 — product dashboard (Next.js, polls /api/metrics)
+cd frontend && npm install && npm run dev
+# Legacy: streamlit run src/telemetry/viz/streamlit_app.py
 
 # Benchmark harness
 telemetry-benchmark --events 10000 --report benchmark_report.json
@@ -103,6 +104,7 @@ docker compose up --build
 |--------------|-------------------------------------|
 | Pipeline API | http://localhost:8081/api/metrics   |
 | Prometheus   | http://localhost:9090               |
+| **Frontend** | http://localhost:3001 (Signal dashboard) |
 | Grafana      | http://localhost:3000 (admin/admin) |
 | TimescaleDB  | `localhost:5432`                    |
 | Kafka        | `localhost:19092`                   |

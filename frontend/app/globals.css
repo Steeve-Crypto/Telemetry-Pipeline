@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-canvas: 248 245 240;
+  --color-surface: 255 255 255;
+  --color-border: 232 228 222;
+  --color-ink: 26 24 20;
+  --color-muted: 107 101 96;
+  --color-accent: 42 107 94;
+  --color-alert: 194 107 74;
+  --color-severity-low: 138 155 168;
+  --color-severity-medium: 201 162 39;
+  --color-severity-high: 194 107 74;
+  --color-severity-critical: 139 46 46;
+}
+
+.dark {
+  --color-canvas: 20 18 16;
+  --color-surface: 30 28 25;
+  --color-border: 46 42 38;
+  --color-ink: 248 245 240;
+  --color-muted: 163 158 151;
+  --color-accent: 61 143 125;
+  --color-alert: 212 122 92;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+  }
+
+  ::selection {
+    @apply bg-accent/20 text-ink;
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}

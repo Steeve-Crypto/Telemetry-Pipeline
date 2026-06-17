@@ -51,6 +51,12 @@ viz:
   port: 8080
   metrics_refresh_seconds: 1.0
 
+alerting:
+  enabled: false
+  slack_webhook_url: ""
+  min_severity: medium
+  cooldown_seconds: 60
+
 prometheus:
   enabled: true
   namespace: telemetry

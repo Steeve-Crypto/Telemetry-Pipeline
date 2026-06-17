@@ -72,6 +72,7 @@ alerting:
   enabled: false
   slack_webhook_url: ""
   min_severity: medium
+  cooldown_seconds: 60
 
 simulator:
   devices: 5

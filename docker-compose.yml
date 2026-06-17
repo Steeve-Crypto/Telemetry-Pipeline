@@ -58,6 +58,9 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+    env_file:
+      - path: .env
+        required: false
     depends_on:
       timescaledb:
         condition: service_healthy

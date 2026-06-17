@@ -108,6 +108,7 @@ class AlertingConfig(BaseModel):
     enabled: bool = False
     slack_webhook_url: str = ""
     min_severity: str = "medium"
+    cooldown_seconds: int = 60
 
 
 class SimulatorConfig(BaseModel):

@@ -143,6 +143,22 @@ All behavior is driven by YAML:
 | `config/sensors.yaml` | Sensor type definitions, baselines, rules |
 | `config/schemas/sensor_event.json` | JSON Schema for events |
 
+### Enable Slack alerting
+
+1. Create a [Slack Incoming Webhook](https://api.slack.com/messaging/webhooks)
+2. Copy `.env.example` → `.env` and set:
+
+```bash
+TELEMETRY_ALERTING_ENABLED=true
+TELEMETRY_SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+TELEMETRY_ALERTING_MIN_SEVERITY=medium
+TELEMETRY_ALERTING_COOLDOWN_SECONDS=60
+```
+
+3. Restart the pipeline: `docker compose up -d pipeline`
+
+Alerts include severity color, device, score, top detection method, and drift flag. Cooldown prevents duplicate alerts per device.
+
 ### Switch ingestion transport
 
 ```yaml

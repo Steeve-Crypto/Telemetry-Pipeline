@@ -9,6 +9,9 @@ ingestion:
     topic: telemetry.events
     group_id: telemetry-pipeline
     auto_offset_reset: latest
+    replay_mode: false
+    enable_auto_commit: false
+    commit_interval_seconds: 5.0
 
 validation:
   schema_path: config/schemas/sensor_event.json
@@ -25,6 +28,14 @@ storage:
     dsn: postgresql://telemetry:telemetry@timescaledb:5432/telemetry
     batch_size: 50
     flush_interval_seconds: 1.0
+    retention_days: 90
+    compression_after_days: 7
+    enable_retention_policy: true
+  clickhouse:
+    host: clickhouse
+    port: 8123
+    database: telemetry
+    batch_size: 500
 
 anomaly:
   enabled: true
@@ -50,6 +61,22 @@ viz:
   host: 0.0.0.0
   port: 8080
   metrics_refresh_seconds: 1.0
+  security:
+    api_key: ""
+    rate_limit_enabled: true
+    rate_limit_rpm: 300
+
+logging:
+  format: json
+  level: info
+
+opentelemetry:
+  enabled: false
+  endpoint: http://otel-collector:4318
+  service_name: telemetry-pipeline
+
+shutdown:
+  drain_timeout_seconds: 15.0
 
 alerting:
   enabled: false

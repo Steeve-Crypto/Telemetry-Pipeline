@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from aiohttp import web
 
-from telemetry.config import VizConfig
+from telemetry.config import TenancyConfig, VizConfig
 from telemetry.prometheus import PrometheusExporter
 from telemetry.storage.timescale import StorageBackend
-from telemetry.viz.middleware import build_security_middleware
+from telemetry.viz.middleware import TENANT_ID_KEY, build_security_middleware
 
 
 class VizAPI:
@@ -16,12 +16,15 @@ class VizAPI:
         storage: StorageBackend,
         prometheus: PrometheusExporter | None = None,
         viz_config: VizConfig | None = None,
+        tenancy_config: TenancyConfig | None = None,
     ) -> None:
+        viz = viz_config or VizConfig()
         self._storage = storage
         self._prometheus = prometheus
-        self.app = web.Application(middlewares=[build_security_middleware(
-            (viz_config or VizConfig()).security
-        )])
+        self._tenancy = tenancy_config or TenancyConfig()
+        self.app = web.Application(middlewares=[
+            build_security_middleware(viz.security, self._tenancy)
+        ])
         self.app.router.add_get("/health", self.health)
         self.app.router.add_get("/api/events", self.events)
         self.app.router.add_get("/api/anomalies", self.anomalies)
@@ -36,15 +39,22 @@ class VizAPI:
     async def health(self, _request: web.Request) -> web.Response:
         return web.json_response({"status": "ok"})
 
+    def _tenant_filter(self, request: web.Request) -> str | None:
+        if not self._tenancy.enabled:
+            return None
+        return request.get(TENANT_ID_KEY) or self._tenancy.default_tenant
+
     async def events(self, request: web.Request) -> web.Response:
         limit = min(int(request.query.get("limit", "100")), 1000)
-        events = await self._storage.recent_events(limit)
+        events = await self._storage.recent_events(limit, tenant_id=self._tenant_filter(request))
         payload = [e.model_dump(mode="json") for e in events]
         return web.json_response(payload)
 
     async def anomalies(self, request: web.Request) -> web.Response:
         limit = min(int(request.query.get("limit", "50")), 500)
-        anomalies = await self._storage.recent_anomalies(limit)
+        anomalies = await self._storage.recent_anomalies(
+            limit, tenant_id=self._tenant_filter(request)
+        )
         payload = [a.model_dump(mode="json") for a in anomalies]
         return web.json_response(payload)
 

@@ -16,6 +16,7 @@ logger = structlog.get_logger(__name__)
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS telemetry_events (
     event_id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL DEFAULT 'default',
     device_id TEXT NOT NULL,
     sensor_type TEXT NOT NULL,
     timestamp TIMESTAMPTZ NOT NULL,
@@ -27,11 +28,14 @@ CREATE TABLE IF NOT EXISTS telemetry_events (
     anomaly_label TEXT,
     PRIMARY KEY (event_id, timestamp)
 );
+ALTER TABLE telemetry_events ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
 CREATE INDEX IF NOT EXISTS idx_events_device_time ON telemetry_events (device_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_events_sensor_time ON telemetry_events (sensor_type, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_events_tenant_time ON telemetry_events (tenant_id, timestamp DESC);
 
 CREATE TABLE IF NOT EXISTS window_stats (
     id BIGSERIAL PRIMARY KEY,
+    tenant_id TEXT NOT NULL DEFAULT 'default',
     device_id TEXT NOT NULL,
     sensor_type TEXT NOT NULL,
     window_start TIMESTAMPTZ NOT NULL,
@@ -45,8 +49,11 @@ CREATE TABLE IF NOT EXISTS window_stats (
 );
 CREATE INDEX IF NOT EXISTS idx_window_stats_device ON window_stats (device_id, window_start DESC);
 
+ALTER TABLE window_stats ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
+
 CREATE TABLE IF NOT EXISTS anomaly_scores (
     id BIGSERIAL PRIMARY KEY,
+    tenant_id TEXT NOT NULL DEFAULT 'default',
     device_id TEXT NOT NULL,
     sensor_type TEXT NOT NULL,
     timestamp TIMESTAMPTZ NOT NULL,
@@ -57,7 +64,9 @@ CREATE TABLE IF NOT EXISTS anomaly_scores (
     drift_detected BOOLEAN DEFAULT FALSE,
     message TEXT
 );
+ALTER TABLE anomaly_scores ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
 CREATE INDEX IF NOT EXISTS idx_anomaly_device_time ON anomaly_scores (device_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_anomaly_tenant_time ON anomaly_scores (tenant_id, timestamp DESC);
 """
 
 
@@ -81,10 +90,10 @@ class StorageBackend(ABC):
     async def write_anomaly(self, score: AnomalyScore) -> None: ...
 
     @abstractmethod
-    async def recent_events(self, limit: int = 100) -> list[EnrichedEvent]: ...
+    async def recent_events(self, limit: int = 100, tenant_id: str | None = None) -> list[EnrichedEvent]: ...
 
     @abstractmethod
-    async def recent_anomalies(self, limit: int = 50) -> list[AnomalyScore]: ...
+    async def recent_anomalies(self, limit: int = 50, tenant_id: str | None = None) -> list[AnomalyScore]: ...
 
 
 class MemoryStorage(StorageBackend):
@@ -111,11 +120,17 @@ class MemoryStorage(StorageBackend):
     async def write_anomaly(self, score: AnomalyScore) -> None:
         self.anomalies.append(score)
 
-    async def recent_events(self, limit: int = 100) -> list[EnrichedEvent]:
-        return self.events[-limit:]
+    async def recent_events(self, limit: int = 100, tenant_id: str | None = None) -> list[EnrichedEvent]:
+        events = self.events
+        if tenant_id:
+            events = [e for e in events if e.tenant_id == tenant_id]
+        return events[-limit:]
 
-    async def recent_anomalies(self, limit: int = 50) -> list[AnomalyScore]:
-        return self.anomalies[-limit:]
+    async def recent_anomalies(self, limit: int = 50, tenant_id: str | None = None) -> list[AnomalyScore]:
+        anomalies = self.anomalies
+        if tenant_id:
+            anomalies = [a for a in anomalies if a.tenant_id == tenant_id]
+        return anomalies[-limit:]
 
 
 class TimescaleStorage(StorageBackend):
@@ -197,14 +212,15 @@ class TimescaleStorage(StorageBackend):
             await conn.executemany(
                 """
                 INSERT INTO telemetry_events
-                (event_id, device_id, sensor_type, timestamp, ingested_at,
+                (event_id, tenant_id, device_id, sensor_type, timestamp, ingested_at,
                  ingest_latency_ms, metrics, tags, is_anomaly, anomaly_label)
-                VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10,$11)
                 ON CONFLICT (event_id, timestamp) DO NOTHING
                 """,
                 [
                     (
                         e.event_id,
+                        e.tenant_id,
                         e.device_id,
                         e.sensor_type,
                         e.timestamp,
@@ -226,11 +242,12 @@ class TimescaleStorage(StorageBackend):
             await conn.executemany(
                 """
                 INSERT INTO window_stats
-                (device_id, sensor_type, window_start, window_end, field, count, mean, min, max, std)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+                (tenant_id, device_id, sensor_type, window_start, window_end, field, count, mean, min, max, std)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
                 """,
                 [
                     (
+                        s.tenant_id,
                         s.device_id,
                         s.sensor_type,
                         s.window_start,
@@ -253,9 +270,10 @@ class TimescaleStorage(StorageBackend):
             await conn.execute(
                 """
                 INSERT INTO anomaly_scores
-                (device_id, sensor_type, timestamp, score, is_anomaly, severity, methods, drift_detected, message)
-                VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9)
+                (tenant_id, device_id, sensor_type, timestamp, score, is_anomaly, severity, methods, drift_detected, message)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10)
                 """,
+                score.tenant_id,
                 score.device_id,
                 score.sensor_type,
                 score.timestamp,
@@ -267,40 +285,69 @@ class TimescaleStorage(StorageBackend):
                 score.message,
             )
 
-    async def recent_events(self, limit: int = 100) -> list[EnrichedEvent]:
+    async def recent_events(self, limit: int = 100, tenant_id: str | None = None) -> list[EnrichedEvent]:
         if self._pool is None:
             return []
         async with self._pool.acquire() as conn:
-            rows = await conn.fetch(
-                """
-                SELECT event_id, device_id, sensor_type, timestamp, ingested_at,
-                       ingest_latency_ms, metrics, tags, is_anomaly, anomaly_label
-                FROM telemetry_events
-                ORDER BY timestamp DESC
-                LIMIT $1
-                """,
-                limit,
-            )
+            if tenant_id:
+                rows = await conn.fetch(
+                    """
+                    SELECT event_id, tenant_id, device_id, sensor_type, timestamp, ingested_at,
+                           ingest_latency_ms, metrics, tags, is_anomaly, anomaly_label
+                    FROM telemetry_events
+                    WHERE tenant_id = $1
+                    ORDER BY timestamp DESC
+                    LIMIT $2
+                    """,
+                    tenant_id,
+                    limit,
+                )
+            else:
+                rows = await conn.fetch(
+                    """
+                    SELECT event_id, tenant_id, device_id, sensor_type, timestamp, ingested_at,
+                           ingest_latency_ms, metrics, tags, is_anomaly, anomaly_label
+                    FROM telemetry_events
+                    ORDER BY timestamp DESC
+                    LIMIT $1
+                    """,
+                    limit,
+                )
         return [_row_to_event(r) for r in rows]
 
-    async def recent_anomalies(self, limit: int = 50) -> list[AnomalyScore]:
+    async def recent_anomalies(self, limit: int = 50, tenant_id: str | None = None) -> list[AnomalyScore]:
         if self._pool is None:
             return []
         from telemetry.models import Severity
 
         async with self._pool.acquire() as conn:
-            rows = await conn.fetch(
-                """
-                SELECT device_id, sensor_type, timestamp, score, is_anomaly,
-                       severity, methods, drift_detected, message
-                FROM anomaly_scores
-                ORDER BY timestamp DESC
-                LIMIT $1
-                """,
-                limit,
-            )
+            if tenant_id:
+                rows = await conn.fetch(
+                    """
+                    SELECT tenant_id, device_id, sensor_type, timestamp, score, is_anomaly,
+                           severity, methods, drift_detected, message
+                    FROM anomaly_scores
+                    WHERE tenant_id = $1
+                    ORDER BY timestamp DESC
+                    LIMIT $2
+                    """,
+                    tenant_id,
+                    limit,
+                )
+            else:
+                rows = await conn.fetch(
+                    """
+                    SELECT tenant_id, device_id, sensor_type, timestamp, score, is_anomaly,
+                           severity, methods, drift_detected, message
+                    FROM anomaly_scores
+                    ORDER BY timestamp DESC
+                    LIMIT $1
+                    """,
+                    limit,
+                )
         return [
             AnomalyScore(
+                tenant_id=r.get("tenant_id", "default"),
                 device_id=r["device_id"],
                 sensor_type=r["sensor_type"],
                 timestamp=r["timestamp"],
@@ -321,6 +368,7 @@ def _row_to_event(row: object) -> EnrichedEvent:
     r = dict(row)  # type: ignore[arg-type]
     return EnrichedEvent(
         event_id=r["event_id"],
+        tenant_id=r.get("tenant_id", "default"),
         device_id=r["device_id"],
         sensor_type=r["sensor_type"],
         timestamp=r["timestamp"],

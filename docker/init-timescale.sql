@@ -2,6 +2,7 @@ CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 
 CREATE TABLE IF NOT EXISTS telemetry_events (
     event_id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL DEFAULT 'default',
     device_id TEXT NOT NULL,
     sensor_type TEXT NOT NULL,
     timestamp TIMESTAMPTZ NOT NULL,
@@ -17,9 +18,11 @@ CREATE TABLE IF NOT EXISTS telemetry_events (
 SELECT create_hypertable('telemetry_events', 'timestamp', if_not_exists => TRUE);
 
 CREATE INDEX IF NOT EXISTS idx_events_device_time ON telemetry_events (device_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_events_tenant_time ON telemetry_events (tenant_id, timestamp DESC);
 
 CREATE TABLE IF NOT EXISTS window_stats (
     id BIGSERIAL PRIMARY KEY,
+    tenant_id TEXT NOT NULL DEFAULT 'default',
     device_id TEXT NOT NULL,
     sensor_type TEXT NOT NULL,
     window_start TIMESTAMPTZ NOT NULL,
@@ -34,6 +37,7 @@ CREATE TABLE IF NOT EXISTS window_stats (
 
 CREATE TABLE IF NOT EXISTS anomaly_scores (
     id BIGSERIAL PRIMARY KEY,
+    tenant_id TEXT NOT NULL DEFAULT 'default',
     device_id TEXT NOT NULL,
     sensor_type TEXT NOT NULL,
     timestamp TIMESTAMPTZ NOT NULL,
@@ -46,5 +50,6 @@ CREATE TABLE IF NOT EXISTS anomaly_scores (
 );
 
 CREATE INDEX IF NOT EXISTS idx_anomaly_device_time ON anomaly_scores (device_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_anomaly_tenant_time ON anomaly_scores (tenant_id, timestamp DESC);
 
 -- Retention/compression policies applied at runtime by pipeline (see storage.timescale config)

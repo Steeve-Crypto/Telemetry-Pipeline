@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: telemetry
+resources:
+  - namespace.yaml
+  - timescaledb.yaml
+  - redpanda.yaml
+  - kafka-init-job.yaml
+  - pipeline-deployment.yaml
+  - pipeline-service.yaml
+  - pipeline-hpa.yaml
+  - simulator-deployment.yaml
+  - ingress.yaml
+configMapGenerator:
+  - name: telemetry-config
+    files:
+      - ../config/pipeline.k8s.yaml
+      - ../config/sensors.yaml
+images:
+  - name: telemetry-pipeline
+    newName: telemetry-pipeline
+    newTag: latest
+  - name: telemetry-pipeline-simulator
+    newName: telemetry-pipeline-simulator
+    newTag: latest

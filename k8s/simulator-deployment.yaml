@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telemetry-simulator
+  namespace: telemetry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telemetry-simulator
+  template:
+    metadata:
+      labels:
+        app: telemetry-simulator
+    spec:
+      containers:
+        - name: simulator
+          image: telemetry-pipeline-simulator:latest
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+          command:
+            - sh
+            - -c
+            - |
+              sleep 15
+              telemetry-simulator --config /app/config/pipeline.k8s.yaml --sensors /app/config/sensors.yaml --duration 86400
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+      volumes:
+        - name: config
+          configMap:
+            name: telemetry-config

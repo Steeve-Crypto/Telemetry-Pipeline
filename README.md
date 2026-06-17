@@ -212,6 +212,20 @@ pytest tests/test_load.py -v      # throughput benchmark
 pytest tests/test_latency.py -v   # latency budget check
 ```
 
+### CI (GitHub Actions)
+
+On every push/PR to `main`, CI runs:
+
+1. **test** — full `pytest` suite
+2. **smoke** — `docker compose up`, verifies `/health` and events flowing on `:8081`
+
+Run the smoke test locally:
+
+```bash
+chmod +x scripts/smoke_test.sh
+./scripts/smoke_test.sh
+```
+
 ## Project Structure
 
 ```

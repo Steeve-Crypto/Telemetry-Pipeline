@@ -66,7 +66,7 @@ def create_ingestion_source(
     if transport == "kafka":
         from telemetry.ingestion.kafka_consumer import KafkaIngestionSource
 
-        return KafkaIngestionSource(config.ingestion)
+        return KafkaIngestionSource.from_pipeline(config)
     if transport == "websocket":
         from telemetry.ingestion.websocket import WebSocketIngestionSource
 

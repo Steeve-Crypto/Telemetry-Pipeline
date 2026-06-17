@@ -10,22 +10,17 @@ import sys
 import structlog
 
 from telemetry.config import load_pipeline_config, load_sensors_config
+from telemetry.logging_setup import configure_logging
 from telemetry.pipeline import TelemetryPipeline
 from telemetry.validation.config_validator import ConfigValidationError, validate_startup
 
-structlog.configure(
-    processors=[
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.add_log_level,
-        structlog.dev.ConsoleRenderer(),
-    ]
-)
 logger = structlog.get_logger(__name__)
 
 
 async def run_pipeline(config_path: str, sensors_path: str, strict: bool = False) -> None:
     pipeline_config = load_pipeline_config(config_path)
     sensors_config = load_sensors_config(sensors_path)
+    configure_logging(pipeline_config.logging)
     await validate_startup(pipeline_config, sensors_config, strict_connectivity=strict)
     pipeline = TelemetryPipeline(pipeline_config, sensors_config)
 

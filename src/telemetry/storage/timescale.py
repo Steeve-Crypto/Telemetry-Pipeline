@@ -68,6 +68,9 @@ class StorageBackend(ABC):
     @abstractmethod
     async def disconnect(self) -> None: ...
 
+    async def flush(self) -> None:
+        """Flush buffered writes. Override where buffering is used."""
+
     @abstractmethod
     async def write_event(self, event: EnrichedEvent) -> None: ...
 
@@ -94,6 +97,9 @@ class MemoryStorage(StorageBackend):
         pass
 
     async def disconnect(self) -> None:
+        pass
+
+    async def flush(self) -> None:
         pass
 
     async def write_event(self, event: EnrichedEvent) -> None:
@@ -131,8 +137,34 @@ class TimescaleStorage(StorageBackend):
                 )
             except Exception:
                 logger.debug("hypertable_already_exists_or_extension_missing")
+            await self._apply_retention_policies(conn)
         self._flush_task = asyncio.create_task(self._periodic_flush())
         logger.info("timescale_connected")
+
+    async def _apply_retention_policies(self, conn: object) -> None:
+        cfg = self._cfg
+        if not cfg.enable_retention_policy:
+            return
+        try:
+            await conn.execute(
+                f"""
+                SELECT add_compression_policy('telemetry_events', INTERVAL '{cfg.compression_after_days} days',
+                    if_not_exists => TRUE)
+                """
+            )
+            await conn.execute(
+                f"""
+                SELECT add_retention_policy('telemetry_events', INTERVAL '{cfg.retention_days} days',
+                    if_not_exists => TRUE)
+                """
+            )
+            logger.info(
+                "timescale_retention_applied",
+                retention_days=cfg.retention_days,
+                compression_after_days=cfg.compression_after_days,
+            )
+        except Exception as exc:
+            logger.warning("timescale_retention_policy_skipped", error=str(exc))
 
     async def disconnect(self) -> None:
         if self._flush_task:
@@ -304,4 +336,8 @@ def _row_to_event(row: object) -> EnrichedEvent:
 def create_storage(config: PipelineYamlConfig) -> StorageBackend:
     if config.storage.backend == "memory":
         return MemoryStorage()
+    if config.storage.backend == "clickhouse":
+        from telemetry.storage.clickhouse import ClickHouseStorage
+
+        return ClickHouseStorage(config.storage.clickhouse)
     return TimescaleStorage(config.storage)

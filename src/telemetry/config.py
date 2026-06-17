@@ -22,6 +22,9 @@ class KafkaConfig(BaseModel):
     topic: str = "telemetry.events"
     group_id: str = "telemetry-pipeline"
     auto_offset_reset: str = "latest"
+    replay_mode: bool = False
+    enable_auto_commit: bool = False
+    commit_interval_seconds: float = 5.0
 
 
 class WebSocketConfig(BaseModel):
@@ -52,11 +55,25 @@ class TimescaleConfig(BaseModel):
     dsn: str = "postgresql://telemetry:telemetry@localhost:5432/telemetry"
     batch_size: int = 100
     flush_interval_seconds: float = 1.0
+    retention_days: int = 90
+    compression_after_days: int = 7
+    enable_retention_policy: bool = True
+
+
+class ClickHouseConfig(BaseModel):
+    host: str = "localhost"
+    port: int = 8123
+    database: str = "telemetry"
+    user: str = "default"
+    password: str = ""
+    batch_size: int = 500
+    flush_interval_seconds: float = 1.0
 
 
 class StorageConfig(BaseModel):
-    backend: Literal["timescale", "memory"] = "timescale"
+    backend: Literal["timescale", "memory", "clickhouse"] = "timescale"
     timescale: TimescaleConfig = Field(default_factory=TimescaleConfig)
+    clickhouse: ClickHouseConfig = Field(default_factory=ClickHouseConfig)
 
 
 class StatisticalAnomalyConfig(BaseModel):
@@ -124,11 +141,33 @@ class MetricsConfig(BaseModel):
     )
 
 
+class ApiSecurityConfig(BaseModel):
+    api_key: str = ""
+    rate_limit_enabled: bool = True
+    rate_limit_rpm: int = 120
+
+
 class VizConfig(BaseModel):
     enabled: bool = True
     host: str = "0.0.0.0"
     port: int = 8080
     metrics_refresh_seconds: float = 1.0
+    security: ApiSecurityConfig = Field(default_factory=ApiSecurityConfig)
+
+
+class LoggingConfig(BaseModel):
+    format: Literal["console", "json"] = "console"
+    level: str = "info"
+
+
+class OpenTelemetryConfig(BaseModel):
+    enabled: bool = False
+    endpoint: str = "http://localhost:4318"
+    service_name: str = "telemetry-pipeline"
+
+
+class ShutdownConfig(BaseModel):
+    drain_timeout_seconds: float = 10.0
 
 
 class PrometheusConfig(BaseModel):
@@ -155,6 +194,15 @@ class PipelineYamlConfig(BaseModel):
     viz: VizConfig = Field(default_factory=VizConfig)
     prometheus: PrometheusConfig = Field(default_factory=PrometheusConfig)
     benchmark: BenchmarkConfig = Field(default_factory=BenchmarkConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    opentelemetry: OpenTelemetryConfig = Field(default_factory=OpenTelemetryConfig)
+    shutdown: ShutdownConfig = Field(default_factory=ShutdownConfig)
+
+    @property
+    def kafka_offset_reset(self) -> str:
+        if self.ingestion.kafka.replay_mode:
+            return "earliest"
+        return self.ingestion.kafka.auto_offset_reset
 
 
 class SensorFieldDef(BaseModel):

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from aiohttp import web
 
+from telemetry.config import VizConfig
 from telemetry.prometheus import PrometheusExporter
 from telemetry.storage.timescale import StorageBackend
+from telemetry.viz.middleware import build_security_middleware
 
 
 class VizAPI:
@@ -13,10 +15,13 @@ class VizAPI:
         self,
         storage: StorageBackend,
         prometheus: PrometheusExporter | None = None,
+        viz_config: VizConfig | None = None,
     ) -> None:
         self._storage = storage
         self._prometheus = prometheus
-        self.app = web.Application()
+        self.app = web.Application(middlewares=[build_security_middleware(
+            (viz_config or VizConfig()).security
+        )])
         self.app.router.add_get("/health", self.health)
         self.app.router.add_get("/api/events", self.events)
         self.app.router.add_get("/api/anomalies", self.anomalies)
@@ -32,13 +37,13 @@ class VizAPI:
         return web.json_response({"status": "ok"})
 
     async def events(self, request: web.Request) -> web.Response:
-        limit = int(request.query.get("limit", "100"))
+        limit = min(int(request.query.get("limit", "100")), 1000)
         events = await self._storage.recent_events(limit)
         payload = [e.model_dump(mode="json") for e in events]
         return web.json_response(payload)
 
     async def anomalies(self, request: web.Request) -> web.Response:
-        limit = int(request.query.get("limit", "50"))
+        limit = min(int(request.query.get("limit", "50")), 500)
         anomalies = await self._storage.recent_anomalies(limit)
         payload = [a.model_dump(mode="json") for a in anomalies]
         return web.json_response(payload)

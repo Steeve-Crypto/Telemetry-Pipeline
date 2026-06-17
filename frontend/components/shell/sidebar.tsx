@@ -4,6 +4,7 @@ import { Activity, AlertTriangle, Cpu, LayoutDashboard, Radio } from "lucide-rea
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -55,6 +56,9 @@ export function Sidebar() {
         })}
       </nav>
 
+      <div className="mt-auto pt-4">
+        <ThemeToggle className="w-full justify-start" />
+      </div>
     </aside>
   );
 }

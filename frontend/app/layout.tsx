@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Fraunces, IBM_Plex_Mono, Inter } from "next/font/google";
 
-import { AppShell } from "@/components/shell/app-shell";
+import { ShellGate } from "@/components/shell/shell-gate";
+import { ThemeScript } from "@/components/shell/theme-script";
 import { TenantProvider } from "@/contexts/tenant-context";
+import { ThemeProvider } from "@/contexts/theme-context";
 
 import "./globals.css";
 
@@ -34,12 +36,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${inter.variable} ${fraunces.variable} ${plexMono.variable}`}
     >
+      <head>
+        <ThemeScript />
+      </head>
       <body>
-        <TenantProvider>
-          <AppShell>{children}</AppShell>
-        </TenantProvider>
+        <ThemeProvider>
+          <TenantProvider>
+            <ShellGate>{children}</ShellGate>
+          </TenantProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

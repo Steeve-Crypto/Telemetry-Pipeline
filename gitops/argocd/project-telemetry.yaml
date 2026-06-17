@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: telemetry
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Telemetry pipeline workloads (pipeline, Kafka, TimescaleDB, VictoriaMetrics)
+  sourceRepos:
+    - "*"  # restrict to your Git org in production, e.g. https://github.com/your-org/*
+  destinations:
+    - namespace: telemetry
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  orphanedResources:
+    warn: true

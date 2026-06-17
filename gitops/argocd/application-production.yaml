@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: telemetry-pipeline-production
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/part-of: telemetry-pipeline
+    environment: production
+spec:
+  project: telemetry
+  source:
+    repoURL: https://github.com/your-org/telemetry-pipeline.git
+    targetRevision: main  # pin to tags in prod, e.g. v0.1.0
+    path: helm/telemetry-pipeline
+    helm:
+      releaseName: telemetry-pipeline
+      valueFiles:
+        - values.yaml
+        - values-production.yaml
+      parameters:
+        - name: images.pipeline.tag
+          value: "0.1.0"
+        - name: images.simulator.tag
+          value: "0.1.0"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: telemetry
+  syncPolicy:
+    # Manual or automated — enable automated after CI promotes images
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
+  revisionHistoryLimit: 10

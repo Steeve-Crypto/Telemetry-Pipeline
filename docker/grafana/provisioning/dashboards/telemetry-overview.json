@@ -22,6 +22,29 @@
   "templating": {
     "list": [
       {
+        "name": "tenant",
+        "type": "query",
+        "datasource": {"type": "postgres", "uid": "timescaledb"},
+        "query": "SELECT DISTINCT tenant_id FROM telemetry_events ORDER BY 1",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": false,
+        "current": {"selected": true, "text": "All", "value": "$__all"}
+      },
+      {
+        "name": "tenant_prom",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(telemetry_events_ingested_total, tenant_id)",
+        "query": {"query": "label_values(telemetry_events_ingested_total, tenant_id)", "refId": "A"},
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": false,
+        "current": {"selected": true, "text": "All", "value": "$__all"}
+      },
+      {
         "name": "device",
         "type": "query",
         "datasource": {
@@ -79,7 +102,7 @@
             "type": "postgres",
             "uid": "timescaledb"
           },
-          "rawSql": "SELECT count(*)::bigint AS events FROM telemetry_events WHERE timestamp > NOW() - INTERVAL '1 hour'",
+          "rawSql": "SELECT count(*)::bigint AS events FROM telemetry_events WHERE timestamp > NOW() - INTERVAL '1 hour' AND tenant_id ~ '${tenant:regex}'",
           "format": "table",
           "refId": "A"
         }
@@ -140,7 +163,7 @@
             "type": "postgres",
             "uid": "timescaledb"
           },
-          "rawSql": "SELECT count(DISTINCT device_id)::bigint AS devices FROM telemetry_events WHERE timestamp > NOW() - INTERVAL '1 hour'",
+          "rawSql": "SELECT count(DISTINCT device_id)::bigint AS devices FROM telemetry_events WHERE timestamp > NOW() - INTERVAL '1 hour' AND tenant_id ~ '${tenant:regex}'",
           "format": "table",
           "refId": "A"
         }
@@ -201,7 +224,7 @@
             "type": "postgres",
             "uid": "timescaledb"
           },
-          "rawSql": "SELECT count(*)::bigint AS anomalies FROM anomaly_scores WHERE is_anomaly = true AND timestamp > NOW() - INTERVAL '1 hour'",
+          "rawSql": "SELECT count(*)::bigint AS anomalies FROM anomaly_scores WHERE is_anomaly = true AND timestamp > NOW() - INTERVAL '1 hour' AND tenant_id ~ '${tenant:regex}'",
           "format": "table",
           "refId": "A"
         }
@@ -663,7 +686,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "telemetry_throughput_eps",
+          "expr": "sum(telemetry_throughput_eps{tenant_id=~\"$tenant_prom\"})",
           "legendFormat": "Events/sec",
           "refId": "A"
         }
@@ -719,7 +742,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "telemetry_processing_latency_avg_ms",
+          "expr": "avg(telemetry_processing_latency_avg_ms{tenant_id=~\"$tenant_prom\"})",
           "legendFormat": "Avg ms",
           "refId": "A"
         },
@@ -728,7 +751,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "telemetry_processing_latency_p95_ms",
+          "expr": "avg(telemetry_processing_latency_p95_ms{tenant_id=~\"$tenant_prom\"})",
           "legendFormat": "P95 ms",
           "refId": "B"
         },
@@ -737,7 +760,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "telemetry_processing_latency_p99_ms",
+          "expr": "avg(telemetry_processing_latency_p99_ms{tenant_id=~\"$tenant_prom\"})",
           "legendFormat": "P99 ms",
           "refId": "C"
         }

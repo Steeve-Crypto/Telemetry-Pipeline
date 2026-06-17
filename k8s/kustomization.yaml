@@ -10,6 +10,7 @@ resources:
   - pipeline-service.yaml
   - pipeline-hpa.yaml
   - simulator-deployment.yaml
+  - victoriametrics.yaml
   - ingress.yaml
 configMapGenerator:
   - name: telemetry-config

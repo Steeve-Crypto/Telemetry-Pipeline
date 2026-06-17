@@ -56,3 +56,15 @@ telemetry-kafka-init --config config/pipeline.k8s.yaml
 ## Scaling
 
 The HPA scales pipeline pods from 2–8 based on CPU. Increase `maxReplicas` for higher throughput.
+
+## Metrics — VictoriaMetrics (free Prometheus alternative)
+
+Docker and K8s use [VictoriaMetrics](https://victoriametrics.com/) instead of Prometheus for
+long-term storage. It is PromQL-compatible, uses less RAM, and needs no license.
+
+- Scrape UI: `http://localhost:8428` (Docker) / `kubectl port-forward svc/victoriametrics 8428:8428`
+- Grafana datasource: **VictoriaMetrics** (provisioned automatically)
+- Per-tenant dashboard: **Dashboards → Telemetry → Per-Tenant Metrics**
+
+To use vanilla Prometheus instead: `docker compose --profile prometheus up -d` and point Grafana
+at `http://prometheus:9090`.

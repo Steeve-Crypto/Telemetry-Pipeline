@@ -107,8 +107,25 @@ services:
       sh -c "sleep 8 &&
       telemetry-simulator --config /app/config/pipeline.docker.yaml --sensors /app/config/sensors.yaml --duration 3600"
 
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.101.0
+    depends_on:
+      pipeline:
+        condition: service_healthy
+    ports:
+      - "8428:8428"
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - vm_data:/storage
+    command:
+      - "-storageDataPath=/storage"
+      - "-retentionPeriod=12"
+      - "-httpListenAddr=:8428"
+      - "-promscrape.config=/etc/prometheus/prometheus.yml"
+
   prometheus:
     image: prom/prometheus:v2.52.0
+    profiles: ["prometheus"]
     depends_on:
       pipeline:
         condition: service_healthy
@@ -122,7 +139,7 @@ services:
     depends_on:
       timescaledb:
         condition: service_healthy
-      prometheus:
+      victoriametrics:
         condition: service_started
       loki:
         condition: service_started
@@ -167,3 +184,4 @@ volumes:
   timescale_data:
   grafana_data:
   clickhouse_data:
+  vm_data:

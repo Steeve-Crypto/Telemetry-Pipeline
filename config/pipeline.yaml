@@ -135,6 +135,7 @@ tenancy:
 prometheus:
   enabled: true
   namespace: telemetry
+  per_tenant_labels: true
 
 benchmark:
   default_events: 10000

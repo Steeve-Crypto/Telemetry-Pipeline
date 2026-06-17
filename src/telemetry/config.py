@@ -184,9 +184,18 @@ class TenancyConfig(BaseModel):
     tenant_api_keys: dict[str, str] = Field(default_factory=dict)
 
 
+class MetricsBackendConfig(BaseModel):
+    """Metrics storage — VictoriaMetrics is the default free Prometheus-compatible backend."""
+
+    scrape_config_path: str = "docker/prometheus.yml"
+    victoriametrics_url: str = "http://victoriametrics:8428"
+    retention_months: int = 12
+
+
 class PrometheusConfig(BaseModel):
     enabled: bool = True
     namespace: str = "telemetry"
+    per_tenant_labels: bool = True
 
 
 class BenchmarkConfig(BaseModel):
@@ -216,6 +225,7 @@ class PipelineYamlConfig(BaseModel):
     metrics: MetricsConfig = Field(default_factory=MetricsConfig)
     viz: VizConfig = Field(default_factory=VizConfig)
     prometheus: PrometheusConfig = Field(default_factory=PrometheusConfig)
+    metrics_backend: MetricsBackendConfig = Field(default_factory=MetricsBackendConfig)
     benchmark: BenchmarkConfig = Field(default_factory=BenchmarkConfig)
     eval: EvalConfig = Field(default_factory=EvalConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)

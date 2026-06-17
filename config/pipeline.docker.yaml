@@ -106,3 +106,4 @@ alerting:
 prometheus:
   enabled: true
   namespace: telemetry
+  per_tenant_labels: true

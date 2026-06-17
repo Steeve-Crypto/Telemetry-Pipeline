@@ -12,6 +12,10 @@ ingestion:
     replay_mode: false
     enable_auto_commit: false
     commit_interval_seconds: 5.0
+    topic_per_tenant: true
+    topic_template: telemetry.events.{tenant_id}
+    partitions_per_topic: 3
+    auto_create_topics: true
 
 validation:
   schema_path: config/schemas/sensor_event.json
@@ -87,9 +91,11 @@ shutdown:
   drain_timeout_seconds: 15.0
 
 tenancy:
-  enabled: false
+  enabled: true
   default_tenant: default
-  tenant_api_keys: {}
+  tenant_api_keys:
+    acme: acme-docker-key
+    globex: globex-docker-key
 
 alerting:
   enabled: false

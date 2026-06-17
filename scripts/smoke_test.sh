@@ -23,7 +23,7 @@ done
 
 echo "==> Waiting for events..."
 sleep 15
-METRICS=$(curl -sf http://localhost:8081/api/metrics)
+METRICS=$(curl -sf http://localhost:8081/api/metrics || curl -sf -H "X-API-Key: acme-docker-key" http://localhost:8081/api/metrics)
 echo "$METRICS" | python3 -c "
 import json, sys
 m = json.load(sys.stdin)

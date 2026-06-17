@@ -42,6 +42,17 @@ Set `TELEMETRY_TENANT_KEYS` in the Secret for runtime overrides.
 
 Events carry `tenant_id` in tags or the top-level field; API queries are scoped to the authenticated tenant.
 
+## Kafka topic-per-tenant
+
+When `ingestion.kafka.topic_per_tenant: true`, each tenant publishes to its own topic
+(e.g. `telemetry.events.acme`). The pipeline consumer subscribes to all configured tenant topics.
+
+Provision topics before deploy:
+
+```bash
+telemetry-kafka-init --config config/pipeline.k8s.yaml
+```
+
 ## Scaling
 
 The HPA scales pipeline pods from 2–8 based on CPU. Increase `maxReplicas` for higher throughput.

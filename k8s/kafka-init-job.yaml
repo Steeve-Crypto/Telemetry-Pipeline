@@ -15,4 +15,7 @@ spec:
             - -c
             - |
               rpk topic create telemetry.events -p 3 -r 1 --brokers redpanda:9092 || true
-              echo "topic ready"
+              for tenant in default acme globex; do
+                rpk topic create telemetry.events.${tenant} -p 3 -r 1 --brokers redpanda:9092 || true
+              done
+              echo "kafka topics ready (shared + per-tenant)"

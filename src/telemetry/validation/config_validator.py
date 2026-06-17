@@ -42,8 +42,15 @@ def validate_config(
 
 def _validate_ingestion(config: PipelineYamlConfig, errors: list[str]) -> None:
     transport = config.ingestion.transport
-    if transport == "kafka" and not config.ingestion.kafka.bootstrap_servers:
+    kafka = config.ingestion.kafka
+    if transport == "kafka" and not kafka.bootstrap_servers:
         errors.append("ingestion.kafka.bootstrap_servers is required for kafka transport")
+    if kafka.topic_per_tenant and "{tenant_id}" not in kafka.topic_template:
+        errors.append("ingestion.kafka.topic_template must include {tenant_id} when topic_per_tenant=true")
+    if kafka.topic_per_tenant and not config.tenancy.enabled:
+        logger.warning("kafka_topic_per_tenant_requires_tenancy", hint="enable tenancy.enabled")
+    if kafka.partitions_per_topic <= 0:
+        errors.append("ingestion.kafka.partitions_per_topic must be > 0")
     if transport == "mqtt" and not config.ingestion.mqtt.host:
         errors.append("ingestion.mqtt.host is required for mqtt transport")
 

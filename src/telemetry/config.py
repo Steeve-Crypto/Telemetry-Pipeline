@@ -25,6 +25,12 @@ class KafkaConfig(BaseModel):
     replay_mode: bool = False
     enable_auto_commit: bool = False
     commit_interval_seconds: float = 5.0
+    topic_per_tenant: bool = False
+    topic_template: str = "telemetry.events.{tenant_id}"
+    partitions_per_topic: int = 3
+    replication_factor: int = 1
+    auto_create_topics: bool = True
+    tenant_topics: dict[str, str] = Field(default_factory=dict)
 
 
 class WebSocketConfig(BaseModel):

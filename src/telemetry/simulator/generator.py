@@ -15,6 +15,7 @@ import websockets
 
 from telemetry.config import PipelineYamlConfig, SensorsYamlConfig, load_pipeline_config, load_sensors_config
 from telemetry.ingestion.kafka_producer import KafkaEventProducer
+from telemetry.ingestion.kafka_topics import is_topic_per_tenant, known_tenant_ids
 from telemetry.models import SensorEvent
 
 logger = structlog.get_logger(__name__)
@@ -43,6 +44,19 @@ class SensorSimulator:
         n = self._pipeline.simulator.devices
         types = list(self._sensors.sensor_types.keys())
         return [f"{types[i % len(types)]}-device-{i:03d}" for i in range(n)]
+
+    def _tenant_ids(self) -> list[str]:
+        return known_tenant_ids(self._pipeline.tenancy)
+
+    def _tenant_for_device(self, device_id: str) -> str | None:
+        kafka_cfg = self._pipeline.ingestion.kafka
+        if not is_topic_per_tenant(kafka_cfg, self._pipeline.tenancy):
+            return None
+        tenants = self._tenant_ids()
+        if not tenants:
+            return self._pipeline.tenancy.default_tenant
+        idx = sum(ord(c) for c in device_id) % len(tenants)
+        return tenants[idx]
 
     def generate_event(self, device_id: str, inject_anomaly: bool | None = None) -> SensorEvent:
         sensor_type = device_id.split("-device-")[0]
@@ -82,13 +96,19 @@ class SensorSimulator:
             elif pattern.type == "flatline" and field in metrics:
                 metrics[field] = sensor_def.fields[field].baseline
 
+        tags = {"source": "simulator"}
+        tenant_id = self._tenant_for_device(device_id)
+        if tenant_id:
+            tags["tenant_id"] = tenant_id
+
         return SensorEvent(
             device_id=device_id,
             sensor_type=sensor_type,
             timestamp=datetime.now(timezone.utc),
             sequence=seq,
             metrics=metrics,
-            tags={"source": "simulator"},
+            tags=tags,
+            tenant_id=tenant_id,
             is_anomaly=is_anomaly if inject_anomaly else None,
             anomaly_label=anomaly_label,
         )
@@ -119,7 +139,7 @@ class SensorSimulator:
 
     async def run_kafka(self, duration_seconds: float | None = None) -> int:
         kafka_cfg = self._pipeline.ingestion.kafka
-        producer = KafkaEventProducer(kafka_cfg)
+        producer = KafkaEventProducer(kafka_cfg, self._pipeline.tenancy)
         await producer.connect()
         devices = self._device_ids()
         interval = self._pipeline.simulator.interval_ms / 1000.0
@@ -130,7 +150,7 @@ class SensorSimulator:
             logger.info(
                 "simulator_kafka_connected",
                 servers=kafka_cfg.bootstrap_servers,
-                topic=kafka_cfg.topic,
+                topic_per_tenant=kafka_cfg.topic_per_tenant,
             )
             while duration_seconds is None or (time.monotonic() - start) < duration_seconds:
                 device_id = self._rng.choice(devices)

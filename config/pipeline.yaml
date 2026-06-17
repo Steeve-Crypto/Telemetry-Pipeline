@@ -17,6 +17,10 @@ ingestion:
     replay_mode: false
     enable_auto_commit: false
     commit_interval_seconds: 5.0
+    topic_per_tenant: false
+    topic_template: telemetry.events.{tenant_id}
+    partitions_per_topic: 3
+    auto_create_topics: true
   websocket:
     host: 0.0.0.0
     port: 8765

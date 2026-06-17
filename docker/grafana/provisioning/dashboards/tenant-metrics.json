@@ -1,8 +1,8 @@
 {
   "uid": "telemetry-tenant-metrics",
-  "title": "Per-Tenant Metrics",
-  "description": "Tenant-scoped pipeline throughput, latency, and anomaly counters (VictoriaMetrics)",
-  "tags": ["telemetry", "tenant", "metrics"],
+  "title": "Tenant signal",
+  "description": "Per-tenant ingest, anomalies, and latency — Signal ops view.",
+  "tags": ["signal", "tenant", "telemetry"],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
@@ -13,7 +13,7 @@
       {
         "name": "tenant",
         "type": "query",
-        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "datasource": {"type": "prometheus", "uid": "victoriametrics"},
         "definition": "label_values(telemetry_events_ingested_total, tenant_id)",
         "query": {"query": "label_values(telemetry_events_ingested_total, tenant_id)", "refId": "A"},
         "refresh": 2,
@@ -28,9 +28,9 @@
     {
       "id": 1,
       "type": "stat",
-      "title": "Ingest Rate (/s)",
+      "title": "Ingest rate",
       "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "targets": [{
         "expr": "sum(rate(telemetry_events_ingested_total{tenant_id=~\"$tenant\"}[1m]))",
         "legendFormat": "eps",
@@ -41,9 +41,9 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "Valid Events (total)",
+      "title": "Valid events",
       "gridPos": {"h": 5, "w": 6, "x": 6, "y": 0},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "targets": [{
         "expr": "sum(telemetry_events_valid_total{tenant_id=~\"$tenant\"})",
         "refId": "A"
@@ -52,9 +52,9 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "Anomalies (total)",
+      "title": "Anomalies detected",
       "gridPos": {"h": 5, "w": 6, "x": 12, "y": 0},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}},
       "targets": [{
         "expr": "sum(telemetry_anomalies_detected_total{tenant_id=~\"$tenant\"})",
@@ -64,9 +64,9 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "Throughput (gauge)",
+      "title": "Throughput",
       "gridPos": {"h": 5, "w": 6, "x": 18, "y": 0},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "targets": [{
         "expr": "sum(telemetry_throughput_eps{tenant_id=~\"$tenant\"})",
         "refId": "A"
@@ -76,9 +76,9 @@
     {
       "id": 5,
       "type": "timeseries",
-      "title": "Ingest Rate by Tenant",
+      "title": "Ingest rate by tenant",
       "gridPos": {"h": 9, "w": 12, "x": 0, "y": 5},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "targets": [{
         "expr": "sum by (tenant_id) (rate(telemetry_events_ingested_total{tenant_id=~\"$tenant\"}[1m]))",
         "legendFormat": "{{tenant_id}}",
@@ -89,9 +89,9 @@
     {
       "id": 6,
       "type": "timeseries",
-      "title": "Anomaly Rate by Tenant",
+      "title": "Anomaly rate by tenant",
       "gridPos": {"h": 9, "w": 12, "x": 12, "y": 5},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "targets": [{
         "expr": "sum by (tenant_id) (rate(telemetry_anomalies_detected_total{tenant_id=~\"$tenant\"}[5m]))",
         "legendFormat": "{{tenant_id}}",
@@ -101,9 +101,9 @@
     {
       "id": 7,
       "type": "timeseries",
-      "title": "Processing Latency (ms)",
+      "title": "Processing latency",
       "gridPos": {"h": 9, "w": 12, "x": 0, "y": 14},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "targets": [
         {"expr": "telemetry_processing_latency_avg_ms{tenant_id=~\"$tenant\"}", "legendFormat": "avg {{tenant_id}}", "refId": "A"},
         {"expr": "telemetry_processing_latency_p95_ms{tenant_id=~\"$tenant\"}", "legendFormat": "p95 {{tenant_id}}", "refId": "B"},
@@ -114,9 +114,9 @@
     {
       "id": 8,
       "type": "timeseries",
-      "title": "Invalid / Deduped Events",
+      "title": "Invalid and deduped",
       "gridPos": {"h": 9, "w": 12, "x": 12, "y": 14},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "targets": [
         {"expr": "sum by (tenant_id) (rate(telemetry_events_invalid_total{tenant_id=~\"$tenant\"}[5m]))", "legendFormat": "invalid {{tenant_id}}", "refId": "A"},
         {"expr": "sum by (tenant_id) (rate(telemetry_events_deduped_total{tenant_id=~\"$tenant\"}[5m]))", "legendFormat": "deduped {{tenant_id}}", "refId": "B"}
@@ -125,9 +125,9 @@
     {
       "id": 9,
       "type": "bargauge",
-      "title": "Tenant Comparison — Total Events",
+      "title": "Tenant comparison",
       "gridPos": {"h": 8, "w": 24, "x": 0, "y": 23},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "options": {"orientation": "horizontal", "displayMode": "gradient"},
       "targets": [{
         "expr": "sum by (tenant_id) (telemetry_events_ingested_total)",

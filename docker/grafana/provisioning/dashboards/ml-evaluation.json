@@ -7,7 +7,7 @@
   "links": [],
   "panels": [
     {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "fieldConfig": {
         "defaults": {"unit": "percentunit", "min": 0, "max": 1},
         "overrides": []
@@ -22,11 +22,11 @@
           "refId": "A"
         }
       ],
-      "title": "Ensemble F1 Score",
+      "title": "Ensemble F1",
       "type": "gauge"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "fieldConfig": {
         "defaults": {"unit": "percentunit", "min": 0, "max": 1},
         "overrides": []
@@ -41,11 +41,11 @@
           "refId": "A"
         }
       ],
-      "title": "Ensemble Precision",
+      "title": "Ensemble precision",
       "type": "gauge"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "fieldConfig": {
         "defaults": {"unit": "percentunit", "min": 0, "max": 1},
         "overrides": []
@@ -60,11 +60,11 @@
           "refId": "A"
         }
       ],
-      "title": "Ensemble Recall",
+      "title": "Ensemble recall",
       "type": "gauge"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []},
       "gridPos": {"h": 10, "w": 24, "x": 0, "y": 8},
       "id": 4,
@@ -74,17 +74,18 @@
         {"expr": "telemetry_ml_precision", "legendFormat": "P {{method}}", "refId": "B"},
         {"expr": "telemetry_ml_recall", "legendFormat": "R {{method}}", "refId": "C"}
       ],
-      "title": "Per-Method ML Quality",
+      "title": "Per-method quality",
       "type": "timeseries"
     }
   ],
   "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["telemetry", "ml", "anomaly"],
+  "tags": ["signal", "ml", "telemetry"],
   "templating": {"list": []},
   "time": {"from": "now-6h", "to": "now"},
   "timezone": "browser",
-  "title": "ML Evaluation",
+  "title": "ML evaluation",
+  "description": "Ensemble precision, recall, and per-method quality — Signal ops view.",
   "uid": "telemetry-ml-eval",
   "version": 1
 }

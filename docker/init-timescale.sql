@@ -46,3 +46,5 @@ CREATE TABLE IF NOT EXISTS anomaly_scores (
 );
 
 CREATE INDEX IF NOT EXISTS idx_anomaly_device_time ON anomaly_scores (device_id, timestamp DESC);
+
+-- Retention/compression policies applied at runtime by pipeline (see storage.timescale config)

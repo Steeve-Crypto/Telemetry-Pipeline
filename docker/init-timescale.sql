@@ -1,7 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 
 CREATE TABLE IF NOT EXISTS telemetry_events (
-    event_id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL,
     device_id TEXT NOT NULL,
     sensor_type TEXT NOT NULL,
     timestamp TIMESTAMPTZ NOT NULL,
@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS telemetry_events (
     metrics JSONB NOT NULL,
     tags JSONB,
     is_anomaly BOOLEAN DEFAULT FALSE,
-    anomaly_label TEXT
+    anomaly_label TEXT,
+    PRIMARY KEY (event_id, timestamp)
 );
 
 SELECT create_hypertable('telemetry_events', 'timestamp', if_not_exists => TRUE);

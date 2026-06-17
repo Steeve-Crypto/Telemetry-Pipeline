@@ -88,4 +88,11 @@ class PipelineMetrics(BaseModel):
     anomalies_detected: int = 0
     avg_ingest_latency_ms: float = 0.0
     p95_ingest_latency_ms: float = 0.0
+    avg_processing_latency_ms: float = 0.0
+    p95_processing_latency_ms: float = 0.0
+    p99_processing_latency_ms: float = 0.0
     processing_rate_eps: float = 0.0
+    latency_histogram: dict[str, int] = Field(default_factory=dict)
+
+    def to_api_dict(self) -> dict[str, object]:
+        return self.model_dump(mode="json")

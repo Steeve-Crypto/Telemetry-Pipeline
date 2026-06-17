@@ -77,17 +77,29 @@ class DriftConfig(BaseModel):
     check_interval_seconds: int = 30
 
 
+class AutoencoderConfig(BaseModel):
+    enabled: bool = True
+    backend: Literal["numpy", "torch", "onnx"] = "numpy"
+    hidden_dim: int = 8
+    learning_rate: float = 0.01
+    min_samples: int = 30
+    error_threshold: float = 0.15
+    model_path: str = "models/autoencoder.onnx"
+
+
 class AnomalyConfig(BaseModel):
     enabled: bool = True
     ensemble_weights: dict[str, float] = Field(
         default_factory=lambda: {
-            "statistical": 0.35,
-            "isolation_forest": 0.45,
-            "rule_based": 0.20,
+            "statistical": 0.25,
+            "isolation_forest": 0.30,
+            "rule_based": 0.15,
+            "autoencoder": 0.30,
         }
     )
     statistical: StatisticalAnomalyConfig = Field(default_factory=StatisticalAnomalyConfig)
     isolation_forest: IsolationForestConfig = Field(default_factory=IsolationForestConfig)
+    autoencoder: AutoencoderConfig = Field(default_factory=AutoencoderConfig)
     drift: DriftConfig = Field(default_factory=DriftConfig)
     alert_threshold: float = 0.65
 
@@ -111,6 +123,24 @@ class MetricsConfig(BaseModel):
     )
 
 
+class VizConfig(BaseModel):
+    enabled: bool = True
+    host: str = "0.0.0.0"
+    port: int = 8080
+    metrics_refresh_seconds: float = 1.0
+
+
+class PrometheusConfig(BaseModel):
+    enabled: bool = True
+    namespace: str = "telemetry"
+
+
+class BenchmarkConfig(BaseModel):
+    default_events: int = 10_000
+    warmup_events: int = 500
+    report_path: str = "benchmark_report.json"
+
+
 class PipelineYamlConfig(BaseModel):
     pipeline: dict[str, str] = Field(default_factory=dict)
     ingestion: IngestionConfig = Field(default_factory=IngestionConfig)
@@ -121,6 +151,9 @@ class PipelineYamlConfig(BaseModel):
     alerting: AlertingConfig = Field(default_factory=AlertingConfig)
     simulator: SimulatorConfig = Field(default_factory=SimulatorConfig)
     metrics: MetricsConfig = Field(default_factory=MetricsConfig)
+    viz: VizConfig = Field(default_factory=VizConfig)
+    prometheus: PrometheusConfig = Field(default_factory=PrometheusConfig)
+    benchmark: BenchmarkConfig = Field(default_factory=BenchmarkConfig)
 
 
 class SensorFieldDef(BaseModel):
@@ -162,15 +195,15 @@ def load_yaml(path: Path) -> dict[str, Any]:
         return yaml.safe_load(f) or {}
 
 
-def load_pipeline_config(path: Path | None = None) -> PipelineYamlConfig:
+def load_pipeline_config(path: Path | str | None = None) -> PipelineYamlConfig:
     settings = Settings()
-    config_path = path or settings.pipeline_config_path
+    config_path = Path(path) if path else settings.pipeline_config_path
     data = load_yaml(config_path)
     return PipelineYamlConfig.model_validate(data)
 
 
-def load_sensors_config(path: Path | None = None) -> SensorsYamlConfig:
+def load_sensors_config(path: Path | str | None = None) -> SensorsYamlConfig:
     settings = Settings()
-    config_path = path or settings.sensors_config_path
+    config_path = Path(path) if path else settings.sensors_config_path
     data = load_yaml(config_path)
     return SensorsYamlConfig.model_validate(data)

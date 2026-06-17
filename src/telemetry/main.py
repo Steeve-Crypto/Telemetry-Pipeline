@@ -65,9 +65,12 @@ async def run_pipeline(config_path: str, sensors_path: str) -> None:
         invalid=m.events_invalid,
         deduped=m.events_deduped,
         anomalies=m.anomalies_detected,
-        avg_latency_ms=round(m.avg_ingest_latency_ms, 2),
-        p95_latency_ms=round(m.p95_ingest_latency_ms, 2),
+        avg_ingest_latency_ms=round(m.avg_ingest_latency_ms, 2),
+        p95_ingest_latency_ms=round(m.p95_ingest_latency_ms, 2),
+        avg_processing_latency_ms=round(m.avg_processing_latency_ms, 2),
+        p95_processing_latency_ms=round(m.p95_processing_latency_ms, 2),
         eps=round(m.processing_rate_eps, 1),
+        viz_port=pipeline_config.viz.port if pipeline_config.viz.enabled else None,
     )
 
 

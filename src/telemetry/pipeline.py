@@ -15,9 +15,11 @@ from telemetry.metrics import LatencyTracker, ThroughputTracker
 from telemetry.models import PipelineMetrics
 from telemetry.processor.aggregator import WindowAggregator
 from telemetry.processor.windows import TumblingWindow
+from telemetry.prometheus import PrometheusExporter
 from telemetry.storage.timescale import StorageBackend, create_storage
 from telemetry.validation.enricher import EventEnricher
 from telemetry.validation.schema_validator import SchemaValidator
+from telemetry.viz.api import VizAPI
 
 logger = structlog.get_logger(__name__)
 
@@ -46,10 +48,19 @@ class TelemetryPipeline:
         self._aggregator = WindowAggregator()
         self._anomaly = AnomalyDetector(pipeline_config.anomaly, sensors_config)
         self._alerts = AlertDispatcher(pipeline_config.alerting)
-        self._latency = LatencyTracker()
+        self._ingest_latency = LatencyTracker()
+        self._processing_latency = LatencyTracker()
         self._throughput = ThroughputTracker()
         self._running = False
         self._metrics = PipelineMetrics()
+        self._prometheus = (
+            PrometheusExporter(pipeline_config.prometheus)
+            if pipeline_config.prometheus.enabled
+            else None
+        )
+        self._viz: VizAPI | None = None
+        self._viz_task: asyncio.Task | None = None
+        self._viz_runner = None
 
     @property
     def metrics(self) -> PipelineMetrics:
@@ -59,17 +70,52 @@ class TelemetryPipeline:
     def storage(self) -> StorageBackend:
         return self._storage
 
+    @property
+    def viz(self) -> VizAPI | None:
+        return self._viz
+
+    def metrics_dict(self) -> dict[str, object]:
+        self._metrics.latency_histogram = self._processing_latency.histogram(
+            self._config.metrics.latency_histogram_buckets_ms
+        )
+        return self._metrics.to_api_dict()
+
     async def start(self) -> None:
         await self._ingestion.connect()
         await self._storage.connect()
         self._running = True
+
+        if self._config.viz.enabled:
+            self._viz = VizAPI(self._storage, self._prometheus)
+            self._viz_runner = await self._viz.start(
+                host=self._config.viz.host,
+                port=self._config.viz.port,
+            )
+            self._viz_task = asyncio.create_task(self._refresh_viz_metrics())
+            logger.info("viz_api_started", port=self._config.viz.port)
+
         logger.info("pipeline_started", transport=self._config.ingestion.transport)
 
     async def stop(self) -> None:
         self._running = False
+        if self._viz_task:
+            self._viz_task.cancel()
+            try:
+                await self._viz_task
+            except asyncio.CancelledError:
+                pass
+        if self._viz:
+            await self._viz.stop()
         await self._ingestion.disconnect()
         await self._storage.disconnect()
         logger.info("pipeline_stopped")
+
+    async def _refresh_viz_metrics(self) -> None:
+        interval = self._config.viz.metrics_refresh_seconds
+        while self._running:
+            if self._viz:
+                self._viz.set_pipeline_metrics(self.metrics_dict())
+            await asyncio.sleep(interval)
 
     async def run(self) -> None:
         await self.start()
@@ -84,30 +130,32 @@ class TelemetryPipeline:
     async def process_event(self, raw_event: object) -> None:
         from telemetry.models import SensorEvent
 
+        t0 = time.perf_counter()
         event = raw_event if isinstance(raw_event, SensorEvent) else SensorEvent.model_validate(raw_event)
         self._metrics.events_ingested += 1
         self._throughput.record()
 
-        start_id = f"evt-{self._metrics.events_ingested}"
-        self._latency.start(start_id)
+        ingest_id = f"ingest-{self._metrics.events_ingested}"
+        self._ingest_latency.start(ingest_id)
 
         enriched = self._validator.validate(event)
         if not self._validator.is_valid(enriched):
             self._metrics.events_invalid += 1
             if self._config.validation.drop_invalid:
+                self._record_processing_latency(t0)
                 return
 
         if any(e.startswith("dedup:") for e in enriched.validation_errors):
             self._metrics.events_deduped += 1
+            self._record_processing_latency(t0)
             return
 
         self._metrics.events_valid += 1
         enriched = self._enricher.enrich(enriched)
 
-        latency_ms = self._latency.end(start_id)
-        if latency_ms is not None:
-            self._metrics.avg_ingest_latency_ms = self._latency.mean
-            self._metrics.p95_ingest_latency_ms = self._latency.percentile(95)
+        self._ingest_latency.end(ingest_id)
+        self._metrics.avg_ingest_latency_ms = self._ingest_latency.mean
+        self._metrics.p95_ingest_latency_ms = self._ingest_latency.percentile(95)
 
         await self._storage.write_event(enriched)
 
@@ -122,6 +170,18 @@ class TelemetryPipeline:
             await self._alerts.dispatch(anomaly_score)
 
         self._metrics.processing_rate_eps = self._throughput.events_per_second
+        processing_ms = self._record_processing_latency(t0)
+
+        if self._prometheus:
+            self._prometheus.update(self._metrics, processing_latency_ms=processing_ms)
+
+    def _record_processing_latency(self, t0: float) -> float:
+        processing_ms = (time.perf_counter() - t0) * 1000
+        self._processing_latency.record(processing_ms)
+        self._metrics.avg_processing_latency_ms = self._processing_latency.mean
+        self._metrics.p95_processing_latency_ms = self._processing_latency.percentile(95)
+        self._metrics.p99_processing_latency_ms = self._processing_latency.percentile(99)
+        return processing_ms
 
     async def process_batch(self, events: list) -> None:
         for event in events:
@@ -139,6 +199,8 @@ class InMemoryPipeline(TelemetryPipeline):
     ) -> tuple["InMemoryPipeline", asyncio.Queue]:
         queue: asyncio.Queue = asyncio.Queue()
         pipeline_config.storage.backend = "memory"
+        pipeline_config.viz.enabled = False
+        pipeline_config.prometheus.enabled = False
         ingestion = create_ingestion_source(pipeline_config, memory_queue=queue)
         storage = create_storage(pipeline_config)
         instance = cls(pipeline_config, sensors_config, ingestion=ingestion, storage=storage)

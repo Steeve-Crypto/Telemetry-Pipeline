@@ -36,6 +36,17 @@ services:
       timeout: 10s
       retries: 10
 
+  kafka-init:
+    image: redpandadata/redpanda:v24.1.5
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        rpk topic create telemetry.events -p 3 -r 1 --brokers redpanda:9092 || true
+        echo "Kafka topic telemetry.events ready"
+
   mosquitto:
     image: eclipse-mosquitto:2
     ports:
@@ -50,34 +61,48 @@ services:
     depends_on:
       timescaledb:
         condition: service_healthy
-    environment:
-      TELEMETRY_PIPELINE_CONFIG_PATH: /app/config/pipeline.docker.yaml
+      redpanda:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     volumes:
       - ./config:/app/config:ro
     ports:
-      - "8765:8765"
-      - "8080:8080"
+      - "8081:8080"   # host 8081 — 8080 is often taken locally
     command: >
-      sh -c "pip install -e . -q &&
-      telemetry-pipeline --config /app/config/pipeline.docker.yaml --sensors /app/config/sensors.yaml"
+      telemetry-pipeline --config /app/config/pipeline.docker.yaml --sensors /app/config/sensors.yaml
 
   simulator:
     build:
       context: .
       dockerfile: docker/Dockerfile.simulator
     depends_on:
-      - pipeline
+      pipeline:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
     volumes:
       - ./config:/app/config:ro
     command: >
-      sh -c "sleep 5 &&
+      sh -c "sleep 8 &&
       telemetry-simulator --config /app/config/pipeline.docker.yaml --sensors /app/config/sensors.yaml --duration 3600"
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    depends_on:
+      - pipeline
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
 
   grafana:
     image: grafana/grafana:11.0.0
     depends_on:
       timescaledb:
         condition: service_healthy
+      prometheus:
+        condition: service_started
     ports:
       - "3000:3000"
     environment:

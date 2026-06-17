@@ -3,10 +3,12 @@ pipeline:
   environment: docker
 
 ingestion:
-  transport: websocket
-  websocket:
-    host: 0.0.0.0
-    port: 8765
+  transport: kafka
+  kafka:
+    bootstrap_servers: redpanda:9092
+    topic: telemetry.events
+    group_id: telemetry-pipeline
+    auto_offset_reset: latest
 
 validation:
   schema_path: config/schemas/sensor_event.json
@@ -27,8 +29,28 @@ storage:
 anomaly:
   enabled: true
   alert_threshold: 0.65
+  ensemble_weights:
+    statistical: 0.25
+    isolation_forest: 0.30
+    rule_based: 0.15
+    autoencoder: 0.30
+  autoencoder:
+    enabled: true
+    backend: numpy
+    hidden_dim: 8
+    min_samples: 20
 
 simulator:
   devices: 10
   interval_ms: 100
   anomaly_rate: 0.03
+
+viz:
+  enabled: true
+  host: 0.0.0.0
+  port: 8080
+  metrics_refresh_seconds: 1.0
+
+prometheus:
+  enabled: true
+  namespace: telemetry

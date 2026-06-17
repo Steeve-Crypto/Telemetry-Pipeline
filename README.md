@@ -54,9 +54,13 @@ flowchart LR
 - **Storage**: TimescaleDB (production) or in-memory (tests)
 - **Anomaly detection ensemble**:
   - Statistical (EWMA + z-score)
-  - Online Isolation Forest (`river`)
+  - Online HalfSpaceTrees (`river`)
+  - Online autoencoder (numpy / PyTorch / ONNX)
   - Rule-based thresholds from config
   - ADWIN concept drift detection
+- **Live API**: HTTP API on `:8080` with JSON metrics for Streamlit
+- **Prometheus**: `/metrics` endpoint + Prometheus server in Docker Compose
+- **Benchmark harness**: Formal throughput/latency report (`telemetry-benchmark`)
 - **Synthetic data**: High-frequency generator with labeled anomaly injection
 - **Dataset replay**: NAB-style and pump CSV samples
 - **Testing**: Unit, integration, load (1k events), and latency benchmarks
@@ -82,8 +86,11 @@ python -m telemetry.main --config config/pipeline.yaml
 # Terminal 2 — simulator
 python -m telemetry.simulator.generator --duration 60
 
-# Terminal 3 — Streamlit dashboard (point at API if running)
+# Terminal 3 — Streamlit dashboard (reads live metrics from :8080)
 streamlit run src/telemetry/viz/streamlit_app.py
+
+# Benchmark harness
+telemetry-benchmark --events 10000 --report benchmark_report.json
 ```
 
 ### Docker Compose (full stack)
@@ -94,13 +101,37 @@ docker compose up --build
 
 | Service      | URL / Port                          |
 |--------------|-------------------------------------|
-| Pipeline WS  | `ws://localhost:8765`               |
+| Pipeline API | http://localhost:8081/api/metrics   |
+| Prometheus   | http://localhost:9090               |
 | Grafana      | http://localhost:3000 (admin/admin) |
 | TimescaleDB  | `localhost:5432`                    |
 | Kafka        | `localhost:19092`                   |
 | MQTT         | `localhost:1883`                    |
 
 The simulator starts automatically and feeds the pipeline for 1 hour.
+
+### Grafana dashboards (pre-provisioned)
+
+Login at http://localhost:3000 (admin/admin) → **Dashboards → Telemetry → Telemetry Pipeline Overview**
+
+The dashboard includes 14 panels:
+
+| Section | Panels |
+|---------|--------|
+| **Overview stats** | Events/hr, active devices, anomalies/hr, avg ingest latency |
+| **Ingestion** | Event rate, events by sensor type |
+| **Sensor metrics** | Industrial temperature, windowed vibration |
+| **Latency** | Ingest latency avg/P95 (Timescale), processing latency (Prometheus) |
+| **Anomalies** | Detection rate, severity breakdown, recent anomalies table |
+| **Pipeline health** | Throughput (eps) from Prometheus |
+
+Datasources auto-provisioned: **TimescaleDB** (events/anomalies) + **Prometheus** (pipeline self-metrics).
+
+To reload after editing `docker/grafana/provisioning/dashboards/telemetry-overview.json`:
+
+```bash
+docker compose restart grafana
+```
 
 ## Configuration
 
@@ -151,6 +182,9 @@ telemetry-replay --csv data/sample/pump_sample.csv --speed 50
 
 # Streamlit dashboard
 telemetry-dashboard
+
+# Throughput/latency benchmark
+telemetry-benchmark --events 10000 --warmup 500
 ```
 
 ## Testing
@@ -187,6 +221,25 @@ telemetry-pipeline/
 1. Create `src/telemetry/anomaly/my_method.py`
 2. Wire into `AnomalyDetector.detect()` in `detector.py`
 3. Add weight in `config/pipeline.yaml` under `anomaly.ensemble_weights`
+
+### Switch to PyTorch autoencoder
+
+```yaml
+anomaly:
+  autoencoder:
+    backend: torch
+```
+
+Install ML extras: `pip install -e ".[ml]"`
+
+### Export ONNX model
+
+```python
+from telemetry.anomaly.autoencoder import export_numpy_to_onnx
+export_numpy_to_onnx(input_dim=3, hidden_dim=8, output_path="models/autoencoder.onnx")
+```
+
+Then set `anomaly.autoencoder.backend: onnx` in config.
 
 ### Add ClickHouse storage
 

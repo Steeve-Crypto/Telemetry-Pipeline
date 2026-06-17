@@ -1,0 +1,26 @@
+{
+  "events_total": 2000,
+  "events_valid": 2000,
+  "events_invalid": 0,
+  "anomalies_detected": 15,
+  "duration_seconds": 3.584395567973843,
+  "throughput_eps": 557.9741303861011,
+  "avg_processing_latency_ms": 1.683235409320332,
+  "p50_processing_latency_ms": 1.4485169958788902,
+  "p95_processing_latency_ms": 2.8335099923424423,
+  "p99_processing_latency_ms": 9.267410991014913,
+  "max_processing_latency_ms": 27.035442006308585,
+  "latency_histogram": {
+    "<=1": 907,
+    "<=5": 1158,
+    "<=10": 21,
+    "<=25": 9,
+    "<=50": 4,
+    "<=100": 0,
+    "<=250": 1,
+    "<=500": 0,
+    "<=1000": 0,
+    ">max": 0
+  },
+  "timestamp": "2026-06-17T15:40:28.930651+00:00"
+}

@@ -35,8 +35,12 @@ def main() -> None:
         cols[1].metric("Valid", metrics.get("events_valid", 0))
         cols[2].metric("Invalid", metrics.get("events_invalid", 0))
         cols[3].metric("Anomalies", metrics.get("anomalies_detected", 0))
-        cols[4].metric("Avg Latency (ms)", f"{metrics.get('avg_ingest_latency_ms', 0):.1f}")
+        cols[4].metric("P95 Proc (ms)", f"{metrics.get('p95_processing_latency_ms', 0):.1f}")
         cols[5].metric("Throughput (eps)", f"{metrics.get('processing_rate_eps', 0):.1f}")
+        st.caption(
+            f"Ingest avg: {metrics.get('avg_ingest_latency_ms', 0):.1f} ms | "
+            f"Proc avg: {metrics.get('avg_processing_latency_ms', 0):.1f} ms"
+        )
 
     events = fetch_json(f"{api_base}/api/events?limit=200")
     anomalies = fetch_json(f"{api_base}/api/anomalies?limit=50")

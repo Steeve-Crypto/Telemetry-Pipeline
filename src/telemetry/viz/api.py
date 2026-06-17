@@ -1,22 +1,29 @@
-"""Lightweight HTTP API for dashboard data."""
+"""Lightweight HTTP API for dashboard data and Prometheus metrics."""
 
 from __future__ import annotations
 
-import json
 from aiohttp import web
 
-from telemetry.storage.timescale import MemoryStorage, StorageBackend
+from telemetry.prometheus import PrometheusExporter
+from telemetry.storage.timescale import StorageBackend
 
 
 class VizAPI:
-    def __init__(self, storage: StorageBackend) -> None:
+    def __init__(
+        self,
+        storage: StorageBackend,
+        prometheus: PrometheusExporter | None = None,
+    ) -> None:
         self._storage = storage
+        self._prometheus = prometheus
         self.app = web.Application()
         self.app.router.add_get("/health", self.health)
         self.app.router.add_get("/api/events", self.events)
         self.app.router.add_get("/api/anomalies", self.anomalies)
         self.app.router.add_get("/api/metrics", self.metrics)
+        self.app.router.add_get("/metrics", self.prometheus_metrics)
         self._pipeline_metrics: dict = {}
+        self._runner: web.AppRunner | None = None
 
     def set_pipeline_metrics(self, metrics: dict) -> None:
         self._pipeline_metrics = metrics
@@ -39,9 +46,20 @@ class VizAPI:
     async def metrics(self, _request: web.Request) -> web.Response:
         return web.json_response(self._pipeline_metrics)
 
+    async def prometheus_metrics(self, _request: web.Request) -> web.Response:
+        if self._prometheus is None:
+            return web.Response(text="prometheus disabled", status=503)
+        body, content_type = self._prometheus.render()
+        return web.Response(body=body, content_type=content_type.split(";")[0])
+
     async def start(self, host: str = "0.0.0.0", port: int = 8080) -> web.AppRunner:
-        runner = web.AppRunner(self.app)
-        await runner.setup()
-        site = web.TCPSite(runner, host, port)
+        self._runner = web.AppRunner(self.app)
+        await self._runner.setup()
+        site = web.TCPSite(self._runner, host, port)
         await site.start()
-        return runner
+        return self._runner
+
+    async def stop(self) -> None:
+        if self._runner is not None:
+            await self._runner.cleanup()
+            self._runner = None

@@ -13,6 +13,7 @@ import structlog
 import websockets
 
 from telemetry.config import PipelineYamlConfig, SensorsYamlConfig, load_pipeline_config, load_sensors_config
+from telemetry.ingestion.kafka_producer import KafkaEventProducer
 from telemetry.models import SensorEvent
 
 logger = structlog.get_logger(__name__)
@@ -108,6 +109,42 @@ class SensorSimulator:
                 await asyncio.sleep(interval)
         return sent
 
+    async def run_kafka(self, duration_seconds: float | None = None) -> int:
+        kafka_cfg = self._pipeline.ingestion.kafka
+        producer = KafkaEventProducer(kafka_cfg)
+        await producer.connect()
+        devices = self._device_ids()
+        interval = self._pipeline.simulator.interval_ms / 1000.0
+        sent = 0
+        start = time.monotonic()
+
+        try:
+            logger.info(
+                "simulator_kafka_connected",
+                servers=kafka_cfg.bootstrap_servers,
+                topic=kafka_cfg.topic,
+            )
+            while duration_seconds is None or (time.monotonic() - start) < duration_seconds:
+                device_id = self._rng.choice(devices)
+                event = self.generate_event(device_id)
+                await producer.publish(event)
+                sent += 1
+                if self._pipeline.simulator.burst_mode and sent % 50 == 0:
+                    for _ in range(10):
+                        burst_event = self.generate_event(self._rng.choice(devices))
+                        await producer.publish(burst_event)
+                        sent += 1
+                await asyncio.sleep(interval)
+        finally:
+            await producer.disconnect()
+        return sent
+
+    async def run(self, duration_seconds: float | None = None) -> int:
+        transport = self._pipeline.ingestion.transport
+        if transport == "kafka":
+            return await self.run_kafka(duration_seconds)
+        return await self.run_websocket(duration_seconds)
+
     async def run_to_queue(self, queue: asyncio.Queue, count: int) -> None:
         devices = self._device_ids()
         for i in range(count):
@@ -127,8 +164,8 @@ async def async_main(args: argparse.Namespace) -> None:
         pipeline.simulator.anomaly_rate = args.anomaly_rate
 
     sim = SensorSimulator(pipeline, sensors, seed=args.seed)
-    sent = await sim.run_websocket(duration_seconds=args.duration)
-    logger.info("simulator_finished", events_sent=sent)
+    sent = await sim.run(duration_seconds=args.duration)
+    logger.info("simulator_finished", events_sent=sent, transport=pipeline.ingestion.transport)
 
 
 def main() -> None:

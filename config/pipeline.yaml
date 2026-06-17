@@ -43,9 +43,10 @@ storage:
 anomaly:
   enabled: true
   ensemble_weights:
-    statistical: 0.35
-    isolation_forest: 0.45
-    rule_based: 0.20
+    statistical: 0.25
+    isolation_forest: 0.30
+    rule_based: 0.15
+    autoencoder: 0.30
   statistical:
     z_score_threshold: 3.5
     ewma_alpha: 0.1
@@ -54,6 +55,13 @@ anomaly:
     n_trees: 10
     window_size: 256
     seed: 42
+  autoencoder:
+    enabled: true
+    backend: numpy
+    hidden_dim: 8
+    learning_rate: 0.01
+    min_samples: 30
+    error_threshold: 0.15
   drift:
     enabled: true
     adwin_delta: 0.002
@@ -73,3 +81,18 @@ simulator:
 
 metrics:
   latency_histogram_buckets_ms: [1, 5, 10, 25, 50, 100, 250, 500, 1000]
+
+viz:
+  enabled: true
+  host: 0.0.0.0
+  port: 8080
+  metrics_refresh_seconds: 1.0
+
+prometheus:
+  enabled: true
+  namespace: telemetry
+
+benchmark:
+  default_events: 10000
+  warmup_events: 500
+  report_path: benchmark_report.json

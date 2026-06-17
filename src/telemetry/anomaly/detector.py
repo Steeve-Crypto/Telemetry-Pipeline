@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import structlog
 
+from telemetry.anomaly.autoencoder import OnlineAutoencoder
 from telemetry.anomaly.drift import DriftDetector
 from telemetry.anomaly.isolation_forest import OnlineIsolationForest
 from telemetry.anomaly.statistical import StatisticalDetector
@@ -19,6 +20,7 @@ class AnomalyDetector:
         self._sensors = sensors_config
         self._statistical = StatisticalDetector(config.statistical)
         self._isolation_forest = OnlineIsolationForest(config.isolation_forest, sensors_config)
+        self._autoencoder = OnlineAutoencoder(config.autoencoder, sensors_config)
         self._drift = DriftDetector(config.drift)
 
     def detect(self, event: EnrichedEvent) -> AnomalyScore | None:
@@ -36,6 +38,12 @@ class AnomalyDetector:
         methods["isolation_forest"] = if_score
         methods.update({f"if_{k}": v for k, v in if_detail.items() if k != "isolation_forest"})
 
+        ae_score, ae_detail = self._autoencoder.score(
+            event.device_id, event.sensor_type, event.metrics
+        )
+        methods["autoencoder"] = ae_score
+        methods.update({f"ae_{k}": v for k, v in ae_detail.items() if k != "autoencoder"})
+
         rule_score, rule_detail = self._rule_based_score(event)
         methods["rule_based"] = rule_score
         methods.update({f"rule_{k}": v for k, v in rule_detail.items()})
@@ -44,6 +52,7 @@ class AnomalyDetector:
         ensemble = (
             weights.get("statistical", 0.0) * stat_score
             + weights.get("isolation_forest", 0.0) * if_score
+            + weights.get("autoencoder", 0.0) * ae_score
             + weights.get("rule_based", 0.0) * rule_score
         )
         ensemble = min(1.0, max(0.0, ensemble))

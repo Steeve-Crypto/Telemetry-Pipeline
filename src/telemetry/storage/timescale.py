@@ -15,7 +15,7 @@ logger = structlog.get_logger(__name__)
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS telemetry_events (
-    event_id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL,
     device_id TEXT NOT NULL,
     sensor_type TEXT NOT NULL,
     timestamp TIMESTAMPTZ NOT NULL,
@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS telemetry_events (
     metrics JSONB NOT NULL,
     tags JSONB,
     is_anomaly BOOLEAN DEFAULT FALSE,
-    anomaly_label TEXT
+    anomaly_label TEXT,
+    PRIMARY KEY (event_id, timestamp)
 );
 CREATE INDEX IF NOT EXISTS idx_events_device_time ON telemetry_events (device_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_events_sensor_time ON telemetry_events (sensor_type, timestamp DESC);
@@ -167,7 +168,7 @@ class TimescaleStorage(StorageBackend):
                 (event_id, device_id, sensor_type, timestamp, ingested_at,
                  ingest_latency_ms, metrics, tags, is_anomaly, anomaly_label)
                 VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10)
-                ON CONFLICT (event_id) DO NOTHING
+                ON CONFLICT (event_id, timestamp) DO NOTHING
                 """,
                 [
                     (

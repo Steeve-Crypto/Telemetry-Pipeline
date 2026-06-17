@@ -102,6 +102,7 @@ class AutoencoderConfig(BaseModel):
     min_samples: int = 30
     error_threshold: float = 0.15
     model_path: str = "models/autoencoder.onnx"
+    models_per_sensor: dict[str, str] = Field(default_factory=dict)
 
 
 class AnomalyConfig(BaseModel):
@@ -181,6 +182,15 @@ class BenchmarkConfig(BaseModel):
     report_path: str = "benchmark_report.json"
 
 
+class EvalConfig(BaseModel):
+    warmup_events: int = 50
+    threshold: float | None = None
+    report_path: str = "eval_report.json"
+    threshold_sweep: list[float] = Field(
+        default_factory=lambda: [0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90]
+    )
+
+
 class PipelineYamlConfig(BaseModel):
     pipeline: dict[str, str] = Field(default_factory=dict)
     ingestion: IngestionConfig = Field(default_factory=IngestionConfig)
@@ -194,6 +204,7 @@ class PipelineYamlConfig(BaseModel):
     viz: VizConfig = Field(default_factory=VizConfig)
     prometheus: PrometheusConfig = Field(default_factory=PrometheusConfig)
     benchmark: BenchmarkConfig = Field(default_factory=BenchmarkConfig)
+    eval: EvalConfig = Field(default_factory=EvalConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     opentelemetry: OpenTelemetryConfig = Field(default_factory=OpenTelemetryConfig)
     shutdown: ShutdownConfig = Field(default_factory=ShutdownConfig)

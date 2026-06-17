@@ -50,6 +50,14 @@ anomaly:
     backend: numpy
     hidden_dim: 8
     min_samples: 20
+    models_per_sensor:
+      industrial: models/industrial.onnx
+      vehicle: models/vehicle.onnx
+      network: models/network.onnx
+
+eval:
+  warmup_events: 50
+  report_path: eval_report.json
 
 simulator:
   devices: 10

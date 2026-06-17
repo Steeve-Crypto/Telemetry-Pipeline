@@ -75,6 +75,10 @@ anomaly:
     learning_rate: 0.01
     min_samples: 30
     error_threshold: 0.15
+    models_per_sensor:
+      industrial: models/industrial.onnx
+      vehicle: models/vehicle.onnx
+      network: models/network.onnx
   drift:
     enabled: true
     adwin_delta: 0.002
@@ -126,3 +130,9 @@ benchmark:
   default_events: 10000
   warmup_events: 500
   report_path: benchmark_report.json
+
+eval:
+  warmup_events: 50
+  threshold: null
+  report_path: eval_report.json
+  threshold_sweep: [0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90]

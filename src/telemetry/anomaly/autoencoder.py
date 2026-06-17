@@ -74,26 +74,45 @@ class OnlineAutoencoder:
         self._models: dict[str, _NumpyAutoencoder] = {}
         self._field_order: dict[str, list[str]] = {}
         self._norm_stats: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+        self._onnx_sessions: dict[str, object] = {}
         self._onnx_session = None
         self._torch_models: dict = {}
 
         if config.backend == "onnx":
-            self._load_onnx(config.model_path)
+            self._load_onnx_registry()
         elif config.backend == "torch":
             self._init_torch()
 
-    def _load_onnx(self, model_path: str) -> None:
+    def _load_onnx_registry(self) -> None:
+        if self._config.models_per_sensor:
+            for sensor_type, model_path in self._config.models_per_sensor.items():
+                session = self._load_onnx(model_path, sensor_type=sensor_type)
+                if session is not None:
+                    self._onnx_sessions[sensor_type] = session
+        else:
+            session = self._load_onnx(self._config.model_path)
+            if session is not None:
+                self._onnx_session = session
+
+    def _load_onnx(self, model_path: str, sensor_type: str | None = None) -> object | None:
         path = Path(model_path)
         if not path.exists():
-            logger.warning("onnx_model_missing", path=model_path, fallback="numpy")
-            return
+            logger.warning(
+                "onnx_model_missing",
+                path=model_path,
+                sensor_type=sensor_type,
+                fallback="numpy",
+            )
+            return None
         try:
             import onnxruntime as ort
 
-            self._onnx_session = ort.InferenceSession(str(path))
-            logger.info("onnx_model_loaded", path=model_path)
+            session = ort.InferenceSession(str(path))
+            logger.info("onnx_model_loaded", path=model_path, sensor_type=sensor_type)
+            return session
         except ImportError:
             logger.warning("onnxruntime_not_installed", fallback="numpy")
+            return None
 
     def _init_torch(self) -> None:
         try:
@@ -139,8 +158,9 @@ class OnlineAutoencoder:
         key = f"{device_id}:{sensor_type}"
         x = self._vectorize(key, sensor_type, metrics)
 
-        if self._onnx_session is not None:
-            return self._score_onnx(x)
+        onnx_session = self._onnx_sessions.get(sensor_type) or self._onnx_session
+        if onnx_session is not None:
+            return self._score_onnx(x, onnx_session)
 
         if self._config.backend == "torch":
             torch_score = self._score_torch(key, x)
@@ -159,10 +179,9 @@ class OnlineAutoencoder:
         normalized = min(1.0, max(0.0, (ratio - 1.0) / max(self._config.error_threshold, 1e-6)))
         return normalized, {"autoencoder": normalized, "recon_mse": recon_error, "train_mse": mse}
 
-    def _score_onnx(self, x: np.ndarray) -> tuple[float, dict[str, float]]:
-        assert self._onnx_session is not None
-        input_name = self._onnx_session.get_inputs()[0].name
-        output = self._onnx_session.run(None, {input_name: x.astype(np.float32)})[0]
+    def _score_onnx(self, x: np.ndarray, session: object) -> tuple[float, dict[str, float]]:
+        input_name = session.get_inputs()[0].name
+        output = session.run(None, {input_name: x.astype(np.float32)})[0]
         mse = float(np.mean((x - output) ** 2))
         normalized = min(1.0, mse / max(self._config.error_threshold, 1e-6))
         return normalized, {"autoencoder": normalized, "recon_mse": mse}
@@ -220,6 +239,20 @@ class OnlineAutoencoder:
 
         ratio = mse / max(entry["error_ema"], 1e-9)
         return min(1.0, max(0.0, (ratio - 1.0) / max(self._config.error_threshold, 1e-6)))
+
+
+def export_sensor_models(
+    sensors_config: SensorsYamlConfig,
+    output_dir: str = "models",
+    hidden_dim: int = 8,
+) -> dict[str, Path]:
+    """Export one ONNX autoencoder per configured sensor type."""
+    paths: dict[str, Path] = {}
+    for sensor_type, sensor_def in sensors_config.sensor_types.items():
+        input_dim = len(sensor_def.fields)
+        output_path = Path(output_dir) / f"{sensor_type}.onnx"
+        paths[sensor_type] = export_numpy_to_onnx(input_dim, hidden_dim, str(output_path))
+    return paths
 
 
 def export_numpy_to_onnx(
